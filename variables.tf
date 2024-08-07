@@ -147,8 +147,8 @@ variable "node_pools" {
     network_bridge = string,
     network_tag    = number,
     additonal_storage = optional(object({
-      storage_id     = string,
-      disk_size      = string,
+      storage_id     = optional(string),
+      disk_size      = optional(string),
     }), {})
   })
   }))
