@@ -58,8 +58,11 @@ resource "proxmox_vm_qemu" "k3s-worker" {
           size    = each.value.disk_size
         }
       }
-      scsi1 {
-        disk {
+      dynamic "scsi1" {
+        for_each = each.value.additonal_storage
+        content {
+          storage = scsi1.value.storage_id
+          size    = scsi1.value.disk_size
         }
       }
     }
