@@ -10,7 +10,8 @@ A module for spinning up an expandable and flexible K3s server for your HomeLab 
 - Node pools to easily scale and to handle many kinds of workloads
 - Pure Terraform - no Ansible needed.
 
-## Creating the template
+## Creating the Ubuntu 23.04 template(s)
+Because of limitations of Proxmox is able to use templates we need to create a template on each node with an incrementing QMID. These templates will be identical.
 ```sh
 export QMID=8003
 cd /var/lib/vz/template/iso; wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img;
@@ -19,7 +20,6 @@ qm importdisk $QMID jammy-server-cloudimg-amd64.img local-lvm;
 qm set $QMID --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-$QMID-disk-0;
 qm set $QMID --ide2 local-lvm:cloudinit;
 qm set $QMID --boot c --bootdisk scsi0;
-qm set $QMID --serial0 socket --vga serial0;
 qm template $QMID
 ```
 

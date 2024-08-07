@@ -22,8 +22,7 @@ resource "proxmox_vm_qemu" "k3s-master" {
   name        = "${var.cluster_name}-master-${count.index}"
   clone = var.node_template
   pool = var.proxmox_resource_pool
-
-  # cores = 2
+  onboot = true
   cores   = local.master_node_settings.cores
   sockets = local.master_node_settings.sockets
   memory  = local.master_node_settings.memory

@@ -36,6 +36,7 @@ resource "proxmox_vm_qemu" "k3s-worker" {
   clone = var.node_template
 
   pool = var.proxmox_resource_pool
+  onboot = true
 
   cores   = each.value.cores
   sockets = each.value.sockets
