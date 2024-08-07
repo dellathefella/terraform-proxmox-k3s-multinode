@@ -58,9 +58,6 @@ resource "proxmox_vm_qemu" "k3s-worker" {
           size    = each.value.disk_size
         }
       }
-      scsi1 {
-
-      }
     }
   }
 
@@ -79,7 +76,9 @@ resource "proxmox_vm_qemu" "k3s-worker" {
       ciuser,
       sshkeys,
       disks,
-      network
+      network,
+      hagroup,
+      hastate
     ]
   }
 

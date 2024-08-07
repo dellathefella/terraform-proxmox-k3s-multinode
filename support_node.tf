@@ -56,7 +56,9 @@ resource "proxmox_vm_qemu" "k3s-support" {
       ciuser,
       sshkeys,
       disks,
-      network
+      network,
+      hagroup,
+      hastate
     ]
   }
 
