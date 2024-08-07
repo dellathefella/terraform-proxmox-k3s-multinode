@@ -59,10 +59,12 @@ resource "proxmox_vm_qemu" "k3s-worker" {
         }
       }
       dynamic "scsi1" {
-        for_each = each.value.additonal_storage
+        for_each = each.value.additonal_storage != null ? [each.value.additonal_storage] : []
         content {
-          storage = scsi1.value.storage_id
-          size    = scsi1.value.disk_size
+          disk {
+            storage = scsi1.value.storage_id
+            size    = scsi1.value.disk_size
+          }
         }
       }
     }
