@@ -50,12 +50,16 @@ resource "proxmox_vm_qemu" "k3s-worker" {
         }
       }
     }
+    # Boot disk
     scsi{
       scsi0 {
         disk {
           storage = each.value.storage_id
           size    = each.value.disk_size
         }
+      }
+      scsi1 {
+
       }
     }
   }

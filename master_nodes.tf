@@ -35,6 +35,7 @@ resource "proxmox_vm_qemu" "k3s-master" {
         }
       }
     }
+    # Boot disk
     scsi{
       scsi0 {
         disk {

@@ -31,6 +31,7 @@ resource "proxmox_vm_qemu" "k3s-support" {
         }
       }
     }
+    # Boot disk
     scsi{
       scsi0 {
         disk {
