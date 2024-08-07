@@ -82,7 +82,6 @@ variable "support_node_settings" {
     cores          = number,
     sockets        = number,
     memory         = number,
-    storage_type   = string,
     storage_id     = string,
     disk_size      = string,
     user           = string,
@@ -95,7 +94,6 @@ variable "support_node_settings" {
     cores   = 2
     sockets = 1
     memory  = 4096
-    storage_type = "scsi"
     storage_id   = "local-lvm"
     disk_size    = "10G"
     user         = "support"
@@ -111,7 +109,6 @@ variable "master_node_settings" {
     cores          = number,
     sockets        = number,
     memory         = number,
-    storage_type   = string,
     storage_id     = string,
     disk_size      = string,
     user           = string,
@@ -122,7 +119,6 @@ variable "master_node_settings" {
     cores          = 2
     sockets        = 1
     memory         = 4096
-    storage_type   = "scsi"
     storage_id     = "local-lvm"
     disk_size      = "20G"
     user           = "k3s"
@@ -145,7 +141,6 @@ variable "node_pools" {
     cores          = number,
     sockets        = number,
     memory         = number,
-    storage_type   = string,
     storage_id     = string,
     disk_size      = string,
     user           = string,

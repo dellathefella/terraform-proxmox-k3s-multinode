@@ -27,11 +27,23 @@ resource "proxmox_vm_qemu" "k3s-master" {
   cores   = local.master_node_settings.cores
   sockets = local.master_node_settings.sockets
   memory  = local.master_node_settings.memory
-
-  disk {
-    type    = local.master_node_settings.storage_type
-    storage = local.master_node_settings.storage_id
-    size    = local.master_node_settings.disk_size
+  scsihw = "virtio-scsi-pci"
+  disks {
+    ide{
+      ide2 {
+        cloudinit {
+          storage = local.master_node_settings.storage_id
+        }
+      }
+    }
+    scsi{
+      scsi0 {
+        disk {
+          storage = local.master_node_settings.storage_id
+          size    = local.master_node_settings.disk_size
+        }
+      }
+    }
   }
 
   network {
@@ -49,7 +61,7 @@ resource "proxmox_vm_qemu" "k3s-master" {
     ignore_changes = [
       ciuser,
       sshkeys,
-      disk,
+      disks,
       network
     ]
   }

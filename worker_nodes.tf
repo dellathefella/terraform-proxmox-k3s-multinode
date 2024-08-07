@@ -40,11 +40,23 @@ resource "proxmox_vm_qemu" "k3s-worker" {
   cores   = each.value.cores
   sockets = each.value.sockets
   memory  = each.value.memory
-
-  disk {
-    type    = each.value.storage_type
-    storage = each.value.storage_id
-    size    = each.value.disk_size
+  scsihw = "virtio-scsi-pci"
+  disks {
+    ide{
+      ide2 {
+        cloudinit {
+          storage = each.value.storage_id
+        }
+      }
+    }
+    scsi{
+      scsi0 {
+        disk {
+          storage = each.value.storage_id
+          size    = each.value.disk_size
+        }
+      }
+    }
   }
 
   network {
@@ -61,7 +73,7 @@ resource "proxmox_vm_qemu" "k3s-worker" {
     ignore_changes = [
       ciuser,
       sshkeys,
-      disk,
+      disks,
       network
     ]
   }

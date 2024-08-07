@@ -40,7 +40,7 @@ nginx() {
     sudo -E apt install nginx -y &&
     echo "\e[1;33;4;44mNGINX installed.\e[0m"
 }
-
-
+sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf &&
+sleep 10 &&
 mariadb
 nginx

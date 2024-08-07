@@ -12,10 +12,10 @@ A module for spinning up an expandable and flexible K3s server for your HomeLab 
 
 ## Creating the template
 ```sh
-export QMID=8001
-cd /var/lib/vz/template/iso; wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img;
-qm create $QMID --name "ubuntu-2004-cloudinit-template" --memory 4096 --cores 2 --net0 virtio,bridge=vmbr0;
-qm importdisk $QMID focal-server-cloudimg-amd64.img local-lvm;
+export QMID=8003
+cd /var/lib/vz/template/iso; wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img;
+qm create $QMID --name "ubuntu-2304-cloudinit-template" --memory 4096 --cores 2 --net0 virtio,bridge=vmbr0;
+qm importdisk $QMID jammy-server-cloudimg-amd64.img local-lvm;
 qm set $QMID --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-$QMID-disk-0;
 qm set $QMID --ide2 local-lvm:cloudinit;
 qm set $QMID --boot c --bootdisk scsi0;
@@ -38,7 +38,7 @@ terraform{
   required_providers {
     proxmox = {
       source  = "Telmate/proxmox"
-      version = "2.9.3"
+      version = "3.0.1-rc3"
     }
 
     macaddress = {
@@ -46,35 +46,34 @@ terraform{
       version = "0.3.0"
     }
   }
-  experiments = [module_variable_optional_attrs]
 }
 
 provider "proxmox" {
   # make sure to export PM_API_TOKEN_ID and PM_API_TOKEN_SECRET
   pm_tls_insecure = true
   pm_log_enable = true
-  pm_api_url      = "https://${var.proxmox_entry_point_ip}:8006/api2/json"
+  pm_api_url      = "https://10.10.1.100:8006/api2/json"
+  pm_timeout = 600
 }
 
 module "k3s" {
     source  = "git::github.com/dellathefella/terraform-proxmox-k3s-multinode"
     authorized_keys_file = "~/.ssh/id_rsa.pub"
     authorized_private_key_file = "~/.ssh/id_rsa"
-    proxmox_node = "titan"
+    proxmox_node = "pve-prd0"
 
     #Support node if none specified installs onto entry point node
-    proxmox_support_node = "titan"
-    node_template = "ubuntu-2004-cloudinit-template"
-    network_gateway = "10.0.0.1"
-    lan_subnet = "10.0.0.1/18"
-    cluster_name = "dev"
+    proxmox_support_node = "pve-prd0"
+    node_template = "ubuntu-2304-cloudinit-template"
+    network_gateway = "10.10.1.1"
+    lan_subnet = "10.10.1.1/16"
+    cluster_name = "jdella-com-prd"
     support_node_settings = {
         cores = 2
         sockets = 1
-        memory = 8192
-        storage_type = "scsi"
-        storage_id   = "nytesolutions-fast-store"
-        disk_size    = "10G"
+        memory = 2048
+        storage_id   = "pve-ssd"
+        disk_size    = "120G"
         storage_type = "scsi"
         user         = "support"
         network_tag  = -1
@@ -88,21 +87,17 @@ module "k3s" {
         "traefik",
         "servicelb"
     ]
-    # 10.0.6.1 - 10.0.6.6	(6 available IPs for nodes)
-    control_plane_subnet = "10.0.6.0/29"
+    # 10.10.2.1 - 10.10.2.6	(6 available IPs for nodes)
+    control_plane_subnet = "10.10.2.0/29"
 
-    #This number must match the number of entries for master_nodes
-    #master_nodes_count = 3
-    #distributes the masters upon these nodes in sequential order if not specified the entry point node
-    master_node_target_nodes = ["titan"]
+    master_node_target_nodes = ["pve-prd0","pve-prd1","pve-prd2"]
     master_node_settings = {
         cores          = 2
         sockets        = 1
-        memory         = 8192
-        storage_type   = "scsi"
-        storage_id     = "local-lvm"
+        memory         = 2048
+        storage_id     = "pve-ssd"
         user           = "k3s"
-        disk_size      = "20G"
+        disk_size      = "8G"
         user           = "k3s"
         network_bridge = "vmbr0"
         network_tag    = -1
@@ -113,40 +108,57 @@ module "k3s" {
 
     node_pools = [
         {
-        # 10.0.6.1 - 10.0.6.6	 (6 available IPs for nodes)
-        subnet = "10.0.6.8/29"
+        # 10.10.2.1 - 10.10.2.6	 (6 available IPs for nodes)
+        subnet = "10.10.2.8/29"
 
-        target_node = "titan"
+        target_node = "pve-prd0"
         size = 2
         node_pool_settings = {
           name           = "pool0",
           taints         = [""]
           cores          = 2
           sockets        = 1
-          memory         = 8192
-          storage_type   = "scsi"
-          storage_id     = "nytesolutions-fast-store"
-          disk_size      = "20G"
+          memory         = 4096
+          storage_id     = "pve-ssd"
+          disk_size      = "200G"
           user           = "k3s"
           network_bridge = "vmbr0"
           network_tag    = -1
         }
         },
         {
-        # 10.0.6.16 - 10.0.6.23 (6 available IPs for nodes)
-        subnet = "10.0.6.16/29"
+        # 10.10.2.17 - 10.10.2.22 (6 available IPs for nodes)
+        subnet = "10.10.2.16/29"
 
-        target_node = "titan"
+        target_node = "pve-prd1"
         size = 2
         node_pool_settings = {
           name           = "pool1",
           taints         = [""]
           cores          = 2
           sockets        = 1
-          memory         = 8192
-          storage_type   = "scsi"
-          storage_id     = "nytesolutions-fast-store"
-          disk_size      = "20G"
+          memory         = 4096
+          storage_id     = "pve-ssd"
+          disk_size      = "200G"
+          user           = "k3s"
+          network_bridge = "vmbr0"
+          network_tag    = -1
+        },
+        },
+        {
+        # 10.10.2.25 - 10.10.2.30 (6 available IPs for nodes)
+        subnet = "10.10.2.24/29"
+
+        target_node = "pve-prd2"
+        size = 2
+        node_pool_settings = {
+          name           = "pool2",
+          taints         = [""]
+          cores          = 2
+          sockets        = 1
+          memory         = 4096
+          storage_id     = "pve-ssd"
+          disk_size      = "200G"
           user           = "k3s"
           network_bridge = "vmbr0"
           network_tag    = -1
