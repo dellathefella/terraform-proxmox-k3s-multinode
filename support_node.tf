@@ -1,8 +1,3 @@
-
-resource "terraform_data" "cluster_enable_embedded_etcd" {
-  input = var.cluster_enable_embedded_etcd
-}
-
 locals {
   support_node_settings = var.support_node_settings
   support_node_ip       = cidrhost(var.control_plane_subnet, 0)
@@ -62,9 +57,9 @@ resource "proxmox_vm_qemu" "k3s-support" {
       disks,
       network,
       hagroup,
-      hastate
+      hastate,
+      var.cluster_enable_embedded_etcd
     ]
-    replace_triggered_by = [terraform_data.cluster_enable_embedded_etcd]
   }
 
   os_type = "cloud-init"

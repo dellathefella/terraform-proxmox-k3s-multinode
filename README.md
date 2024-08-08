@@ -67,8 +67,8 @@ module "k3s" {
   lan_subnet           = "10.10.1.1/16"
   cluster_name         = "jdella-com-prd"
   # Enabling this setting disables the MariaDB support instance for the cluster.
-  # Changing this will trigger a cluster rebuild
   # The main advantage of enabling embedded etcd is the cluster no longer has a single point of failure. But can increase resource usage.
+  # You must run terraform destroy before updating this value. 
   cluster_enable_embedded_etcd = true
 
   # Support node settings
