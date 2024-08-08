@@ -3,19 +3,23 @@
 A module for spinning up an expandable and flexible K3s server for your HomeLab in a multinode Proxmox cluster.
 
 ## Features
-
 - Fully automated. No need to remote into a VM; even for a kubeconfig
 - Built in and automatically configured external loadbalancer (both K3s API and ingress)
-- Support for embedded etcd and MariaDB auto configuration `example/README.md`
+- Support for embedded etcd and MariaDB auto configuration [Example](example/README.md)
 - Static(ish) MAC addresses for reproducible DHCP reservations
 - Node pools to easily scale and to handle many kinds of workloads
 - Master nodes with custom topology for your use cases.
 - Pure Terraform - no Ansible needed.
 - Support to add and automatically format additional storage for use with tools like Longhorn.
 
+## Prerequisites
+- Proxmox node(s) running 8.2 or higher
+- Proxmox nodes with sufficient capacity for all nodes
+- A cloneable or template VM that supports Cloud-init and is based on Debian(ideally Ubuntu server) Guide outlined below on how to do that.
+- At least 2 CIDR ranges for master and worker nodes NOT handed out by DHCP (All Nodes are configured with static IPs from these ranges)
 
 ## Creating the Ubuntu 22.04 template(s)
-Because of limitations of Proxmox is able to use templates we need to create a template on each node with an incrementing QMID. These templates will be identical.
+Because of limitations of the way Proxmox uses templates we need to create a template on each node with an incrementing QMID. These templates will be identical but the QMID will be different. You can delete these when you are done if you don't plan on modifying the cluster.
 ```sh
 export QMID=8002
 # Each host needs a different template ID.
@@ -29,13 +33,7 @@ qm set $QMID --boot c --bootdisk scsi0 &&
 qm template $QMID
 ```
 
-## Prerequisites
 
-- A Proxmox nodes with sufficient capacity for all nodes
-- A cloneable or template VM that supports Cloud-init and is based on Debian
-  (ideally ubuntu server)
-- 2 CIDR ranges for master and worker nodes NOT handed out by DHCP (nodes are
-  configured with static IPs from these ranges)
 
 ## Usage and Example
 
@@ -233,10 +231,7 @@ output "kubeconfig" {
 ```
 
 ### Retrieve Kubeconfig
-
-To get the kubeconfig for your new K3s first make sure to forward the module
-output in your project's output:
-
+To get the kubeconfig for your new K3s first make sure to forward the module output in your project's output:
 ```terraform
 output "kubeconfig" {
   # Update module name. Here we are using 'k3s'
@@ -254,8 +249,7 @@ kubectl --kubeconfig config.yaml get nodes
 ```
 
 
-> Make sure your support node is routable from the computer you are running the
-command on!
+> Make sure your support node is routable from the computer you are running the command on!
 
 ## Runbooks
 
