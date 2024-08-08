@@ -39,7 +39,7 @@ qm template $QMID
 ## Usage and Example
 
 ```terraform
-terraform {
+ terraform {
   required_providers {
     proxmox = {
       source  = "Telmate/proxmox"
@@ -75,9 +75,13 @@ module "k3s" {
   cluster_name         = "jdella-com-prd"
   # Enabling this setting disables the MariaDB support instance for the cluster.
   # Changing this will trigger a cluster rebuild
-  cluster_enable_embedded_etcd = true
+  # The main advantage of enabling embedded etcd is the cluster no longer has a single point of failure. But can increase resource usage.
+  cluster_enable_embedded_etcd = false
 
   support_node_settings = {
+    # DB related settings are ignored when cluster_enable_embedded_etcd = true
+    # If using embedded etcd the resources here should be dramatically reduced as Nginx is the main process running.
+    # Conversely the storage and specs for the control plane nodes should be increased.
     cores        = 2
     sockets      = 1
     memory       = 2048
@@ -87,7 +91,6 @@ module "k3s" {
     storage_type = "scsi"
     user         = "support"
     network_tag  = -1
-    # db related settings are ignored when enable_embedded_etcd = true
     db_name        = "k3s"
     db_user        = "k3s"
     network_bridge = "vmbr0"
