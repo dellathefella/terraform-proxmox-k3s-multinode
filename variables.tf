@@ -77,11 +77,6 @@ variable "proxmox_resource_pool" {
   default     = ""
 }
 
-variable "master_node_target_nodes" {
-  description = "Names of master nodes, distributes the master in order of this list. Must be one to one mapping."
-  default     = []
-  type        = list(string)
-}
 variable "support_node_settings" {
   description = "Default settings values for support nodes"
   type = object({
@@ -109,9 +104,10 @@ variable "support_node_settings" {
     network_bridge = "vmbr0"
   }
 }
-variable "master_node_settings" {
+variable "master_nodes" {
   description = "Default settings values for master nodes"
-  type = object({
+  type = list(object({
+    target_node    = string,
     cores          = number,
     sockets        = number,
     memory         = number,
@@ -120,18 +116,7 @@ variable "master_node_settings" {
     user           = string,
     network_bridge = string,
     network_tag    = number,
-  })
-  default = {
-    cores          = 2
-    sockets        = 1
-    memory         = 4096
-    storage_id     = "local-lvm"
-    disk_size      = "20G"
-    user           = "k3s"
-    network_bridge = "vmbr0"
-    network_tag    = -1
-    user           = "k3s"
-  }
+  }))
 }
 
 

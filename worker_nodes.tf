@@ -1,9 +1,4 @@
-resource "macaddress" "k3s-workers" {
-  for_each = local.mapped_worker_nodes
-}
-
 locals {
-
   listed_worker_nodes = flatten([
     for pool in var.node_pools :
     [

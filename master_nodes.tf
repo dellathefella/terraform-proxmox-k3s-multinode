@@ -1,9 +1,15 @@
-resource "macaddress" "k3s-masters" {
-  count = length(var.master_node_target_nodes)
-}
 locals {
-  master_node_settings = var.master_node_settings
-  master_node_ips = [for i in range(length(var.master_node_target_nodes)) : cidrhost(var.control_plane_subnet, i + 1)]
+  listed_master_nodes = flatten([
+    for i, master_node in var.master_nodes : merge(master_node, {
+        name = "${var.cluster_name}-master-${i}"
+        i  = i
+        ip = cidrhost(var.control_plane_subnet, i + 1)})
+      ])
+
+  mapped_master_nodes = {
+    for node in local.listed_master_nodes : "${node.name}" => node
+  }
+
 }
 
 resource "random_password" "k3s-server-token" {
@@ -17,21 +23,22 @@ resource "proxmox_vm_qemu" "k3s-master" {
     proxmox_vm_qemu.k3s-support,
   ]
 
-  count       = length(var.master_node_target_nodes)
-  target_node = length(var.master_node_target_nodes) == 0 ? var.proxmox_node : var.master_node_target_nodes[count.index]
-  name        = "${var.cluster_name}-master-${count.index}"
+  for_each = local.mapped_master_nodes
+
+  target_node = each.value.target_node
+  name        = each.value.name
   clone = var.node_template
   pool = var.proxmox_resource_pool
   onboot = true
-  cores   = local.master_node_settings.cores
-  sockets = local.master_node_settings.sockets
-  memory  = local.master_node_settings.memory
+  cores   = each.value.cores
+  sockets = each.value.sockets
+  memory  = each.value.memory
   scsihw = "virtio-scsi-pci"
   disks {
     ide{
       ide2 {
         cloudinit {
-          storage = local.master_node_settings.storage_id
+          storage = each.value.storage_id
         }
       }
     }
@@ -39,22 +46,21 @@ resource "proxmox_vm_qemu" "k3s-master" {
     scsi{
       scsi0 {
         disk {
-          storage = local.master_node_settings.storage_id
-          size    = local.master_node_settings.disk_size
+          storage = each.value.storage_id
+          size    = each.value.disk_size
         }
       }
     }
   }
 
   network {
-    bridge    = local.master_node_settings.network_bridge
+    bridge    = each.value.network_bridge
     firewall  = true
     link_down = false
-    macaddr   = upper(macaddress.k3s-masters[count.index].address)
     model     = "virtio"
     queues    = 0
     rate      = 0
-    tag       = local.master_node_settings.network_tag
+    tag       = each.value.network_tag
   }
 
   lifecycle {
@@ -70,29 +76,29 @@ resource "proxmox_vm_qemu" "k3s-master" {
 
   os_type = "cloud-init"
 
-  ciuser = local.master_node_settings.user
+  ciuser = each.value.user
 
-  ipconfig0 = "ip=${local.master_node_ips[count.index]}/${local.lan_subnet_cidr_bitnum},gw=${var.network_gateway}"
+  ipconfig0 = "ip=${each.value.ip}/${local.lan_subnet_cidr_bitnum},gw=${var.network_gateway}"
 
   sshkeys = file(var.authorized_keys_file)
 
   connection {
     type = "ssh"
-    user = local.master_node_settings.user
-    host = local.master_node_ips[count.index]
+    user = each.value.user
+    host = each.value.ip
     private_key = file(var.authorized_private_key_file)
     agent = false
   }
 
   provisioner "remote-exec" {
     # Any additional node past the first one sleeps for extra time to ensure etcd can be bootstrapped in time.
-    inline = ["sleep ${(count.index+1)*10}",
+    inline = ["sleep ${(each.value.i+1)*10}",
       templatefile("${path.module}/scripts/install-k3s-server.sh.tftpl", {
         mode         = "server"
         tokens       = [random_password.k3s-server-token.result]
         alt_names    = concat([local.support_node_ip], var.api_hostnames)
         # Skip first host for server hosts if embedded etcd is turned on
-        server_hosts = var.cluster_enable_embedded_etcd == true && count.index != 0 ? ["https://${local.master_node_ips[0]}:6443"] : []
+        server_hosts = var.cluster_enable_embedded_etcd == true && each.value.i != 0 ? ["https://${local.listed_master_nodes[0].ip}:6443"] : []
         node_taints  = ["CriticalAddonsOnly=true:NoExecute"]
         disable      = var.k3s_disable_components
         # Datastores are not enabled if embedded etcd is enabled
@@ -106,7 +112,7 @@ resource "proxmox_vm_qemu" "k3s-master" {
         # Master nodes do not have extra storage
         extra_storage_enable = false
         # Embedded etcd init if first control plane node and embedded etcd is enable. 
-        embedded_etcd_init = count.index == 0 && var.cluster_enable_embedded_etcd == true ? true : false
+        embedded_etcd_init = each.value.i == 0 && var.cluster_enable_embedded_etcd == true ? true : false
       })
     ,"sleep 5"]
   }
@@ -122,7 +128,7 @@ data "external" "kubeconfig" {
     "/usr/bin/ssh",
     "-o UserKnownHostsFile=/dev/null",
     "-o StrictHostKeyChecking=no",
-    "${local.master_node_settings.user}@${local.master_node_ips[0]}",
+    "${local.listed_master_nodes[0].user}@${local.listed_master_nodes[0].ip}",
     "echo '{\"kubeconfig\":\"'$(sudo cat /etc/rancher/k3s/k3s.yaml | base64)'\"}'"
   ]
 }

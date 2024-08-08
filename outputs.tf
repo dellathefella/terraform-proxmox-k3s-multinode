@@ -29,17 +29,15 @@ output "support_node_user" {
   value = local.support_node_settings.user
 }
 
-output "master_node_ips" {
-  value = local.master_node_ips
-}
-
 output "k3s_server_token" {
   value     = random_password.k3s-server-token.result
   sensitive = true
 }
 
 output "k3s_master_node_ips" {
-  value = local.master_node_ips
+  value = [
+    for master_node in local.listed_master_nodes : master_node.ip
+  ]
 }
 
 output "k3s_kubeconfig" {

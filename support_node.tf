@@ -1,5 +1,3 @@
-resource "macaddress" "k3s-support" {}
-
 locals {
   support_node_settings = var.support_node_settings
   support_node_ip = cidrhost(var.control_plane_subnet, 0)
@@ -132,13 +130,10 @@ resource "null_resource" "k3s_nginx_config" {
   provisioner "file" {
     destination = "/tmp/nginx.conf"
     content = templatefile("${path.module}/config/nginx.conf.tftpl", {
-      k3s_server_hosts = [for ip in local.master_node_ips :
-        "${ip}:6443"
+      k3s_server_hosts = [for master_node in local.listed_master_nodes :
+        "${master_node.ip}:6443"
       ]
-      k3s_nodes = concat(local.master_node_ips, [
-        for node in local.listed_worker_nodes :
-        node.ip
-      ])
+      k3s_nodes = concat( [for master_node in local.listed_master_nodes : master_node.ip ], [ for node in local.listed_worker_nodes : node.ip])
     })
   }
 

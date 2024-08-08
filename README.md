@@ -6,9 +6,10 @@ A module for spinning up an expandable and flexible K3s server for your HomeLab 
 
 - Fully automated. No need to remote into a VM; even for a kubeconfig
 - Built in and automatically configured external loadbalancer (both K3s API and ingress)
-- Support for embedded etcd and external database
+- Support for embedded etcd and MariaDB auto configuration `example/README.md`
 - Static(ish) MAC addresses for reproducible DHCP reservations
 - Node pools to easily scale and to handle many kinds of workloads
+- Master nodes with custom topology for your use cases.
 - Pure Terraform - no Ansible needed.
 - Support to add and automatically format additional storage for use with tools like Longhorn.
 
@@ -33,22 +34,17 @@ qm template $QMID
 - A Proxmox nodes with sufficient capacity for all nodes
 - A cloneable or template VM that supports Cloud-init and is based on Debian
   (ideally ubuntu server)
-- 2 cidr ranges for master and worker nodes NOT handed out by DHCP (nodes are
+- 2 CIDR ranges for master and worker nodes NOT handed out by DHCP (nodes are
   configured with static IPs from these ranges)
 
 ## Usage and Example
 
 ```terraform
- terraform {
+terraform {
   required_providers {
     proxmox = {
       source  = "Telmate/proxmox"
       version = "3.0.1-rc3"
-    }
-
-    macaddress = {
-      source  = "ivoronin/macaddress"
-      version = "0.3.0"
     }
   }
 }
@@ -68,7 +64,6 @@ module "k3s" {
   proxmox_node                = "pve-prd0"
 
   #Support node if none specified installs onto entry point node
-  proxmox_support_node = "pve-prd0"
   node_template        = "ubuntu-2204-cloudinit-template"
   network_gateway      = "10.10.1.1"
   lan_subnet           = "10.10.1.1/16"
@@ -76,18 +71,20 @@ module "k3s" {
   # Enabling this setting disables the MariaDB support instance for the cluster.
   # Changing this will trigger a cluster rebuild
   # The main advantage of enabling embedded etcd is the cluster no longer has a single point of failure. But can increase resource usage.
-  cluster_enable_embedded_etcd = false
+  cluster_enable_embedded_etcd = true
 
+  # Support node settings
+  proxmox_support_node = "pve-prd0"
   support_node_settings = {
     # DB related settings are ignored when cluster_enable_embedded_etcd = true
     # If using embedded etcd the resources here should be dramatically reduced as Nginx is the main process running.
     # Conversely the storage and specs for the control plane nodes should be increased.
     cores        = 2
     sockets      = 1
-    memory       = 2048
+    memory       = 1024
     storage_type = "scsi"
     storage_id   = "pve-ssd"
-    disk_size    = "240G"
+    disk_size    = "16G"
     storage_type = "scsi"
     user         = "support"
     network_tag  = -1
@@ -104,10 +101,10 @@ module "k3s" {
   # 10.10.2.1 - 10.10.2.6	(6 available IPs for nodes)
   control_plane_subnet = "10.10.2.0/29"
 
-  # Distributes the masters upon these nodes in sequential order if not specified the entry point node
-
-  master_node_target_nodes = ["pve-prd0", "pve-prd1", "pve-prd2"]
-  master_node_settings = {
+  # These are not rolled as a pool but individually.
+  master_nodes = [
+  {
+    target_node  = "pve-prd0"
     cores        = 2
     sockets      = 1
     memory       = 2048
@@ -115,13 +112,43 @@ module "k3s" {
     storage_id   = "pve-ssd"
     user         = "k3s"
     # Set disk_size much higher if using embedded etcd
-    disk_size      = "120G"
+    disk_size      = "240G"
+    user           = "k3s"
+    network_bridge = "vmbr0"
+    network_tag    = -1
+    user           = "k3s"
+  },
+  {
+    target_node  = "pve-prd1"
+    cores        = 2
+    sockets      = 1
+    memory       = 2048
+    storage_type = "scsi"
+    storage_id   = "pve-ssd"
+    user         = "k3s"
+    # Set disk_size much higher if using embedded etcd
+    disk_size      = "240G"
+    user           = "k3s"
+    network_bridge = "vmbr0"
+    network_tag    = -1
+    user           = "k3s"
+  },
+  {
+    target_node  = "pve-prd2"
+    cores        = 2
+    sockets      = 1
+    memory       = 2048
+    storage_type = "scsi"
+    storage_id   = "pve-ssd"
+    user         = "k3s"
+    # Set disk_size much higher if using embedded etcd
+    disk_size      = "240G"
     user           = "k3s"
     network_bridge = "vmbr0"
     network_tag    = -1
     user           = "k3s"
   }
-
+  ]
   node_pools = [
     {
       # 10.10.2.1 - 10.10.2.6	 (6 available IPs for nodes)
