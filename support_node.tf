@@ -1,6 +1,6 @@
 locals {
   support_node_settings = var.support_node_settings
-  support_node_ip = cidrhost(var.control_plane_subnet, 0)
+  support_node_ip       = cidrhost(var.control_plane_subnet, 0)
 }
 
 locals {
@@ -8,21 +8,21 @@ locals {
 }
 
 resource "proxmox_vm_qemu" "k3s-support" {
-  target_node = length(var.proxmox_support_node) == 0 ? var.proxmox_node: var.proxmox_support_node
+  target_node = length(var.proxmox_support_node) == 0 ? var.proxmox_node : var.proxmox_support_node
   name        = join("-", [var.cluster_name, "support"])
 
   clone = var.node_template
 
-  pool = var.proxmox_resource_pool
+  pool   = var.proxmox_resource_pool
   onboot = true
 
   # cores = 2
   cores   = local.support_node_settings.cores
   sockets = local.support_node_settings.sockets
   memory  = local.support_node_settings.memory
-  scsihw = "virtio-scsi-pci"
+  scsihw  = "virtio-scsi-pci"
   disks {
-    ide{
+    ide {
       ide2 {
         cloudinit {
           storage = local.support_node_settings.storage_id
@@ -30,12 +30,12 @@ resource "proxmox_vm_qemu" "k3s-support" {
       }
     }
     # Boot disk
-    scsi{
+    scsi {
       scsi0 {
         disk {
           replicate = true
-          storage = local.support_node_settings.storage_id
-          size    = local.support_node_settings.disk_size
+          storage   = local.support_node_settings.storage_id
+          size      = local.support_node_settings.disk_size
         }
       }
     }
@@ -59,6 +59,9 @@ resource "proxmox_vm_qemu" "k3s-support" {
       hagroup,
       hastate
     ]
+    replace_triggered_by = [
+      var.cluster_enable_embedded_etcd
+    ]
   }
 
   os_type = "cloud-init"
@@ -70,21 +73,21 @@ resource "proxmox_vm_qemu" "k3s-support" {
   sshkeys = file(var.authorized_keys_file)
 
   connection {
-    type = "ssh"
-    user = local.support_node_settings.user
-    host = local.support_node_ip
+    type        = "ssh"
+    user        = local.support_node_settings.user
+    host        = local.support_node_ip
     private_key = file(var.authorized_private_key_file)
-    agent = false
+    agent       = false
   }
 
   provisioner "file" {
     destination = "/tmp/install.sh"
     content = templatefile("${path.module}/scripts/install-support-apps.sh.tftpl", {
-      root_password = random_password.support-db-password.result
-      k3s_database = local.support_node_settings.db_name
-      k3s_user     = local.support_node_settings.db_user
-      k3s_password = random_password.k3s-master-db-password.result
-      http_proxy  = var.http_proxy
+      root_password      = random_password.support-db-password.result
+      k3s_database       = local.support_node_settings.db_name
+      k3s_user           = local.support_node_settings.db_user
+      k3s_password       = random_password.k3s-master-db-password.result
+      http_proxy         = var.http_proxy
       embedded_etcd_init = var.cluster_enable_embedded_etcd
     })
   }
@@ -121,9 +124,9 @@ resource "null_resource" "k3s_nginx_config" {
   }
 
   connection {
-    type = "ssh"
-    user = local.support_node_settings.user
-    host = local.support_node_ip
+    type        = "ssh"
+    user        = local.support_node_settings.user
+    host        = local.support_node_ip
     private_key = file(var.authorized_private_key_file)
   }
 
@@ -133,7 +136,7 @@ resource "null_resource" "k3s_nginx_config" {
       k3s_server_hosts = [for master_node in local.listed_master_nodes :
         "${master_node.ip}:6443"
       ]
-      k3s_nodes = concat( [for master_node in local.listed_master_nodes : master_node.ip ], [ for node in local.listed_worker_nodes : node.ip])
+      k3s_nodes = concat([for master_node in local.listed_master_nodes : master_node.ip], [for node in local.listed_worker_nodes : node.ip])
     })
   }
 

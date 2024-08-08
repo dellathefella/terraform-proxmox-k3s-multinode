@@ -22,10 +22,10 @@ module "k3s" {
   proxmox_node                = "pve-prd0"
 
   #Support node if none specified installs onto entry point node
-  node_template        = "ubuntu-2204-cloudinit-template"
-  network_gateway      = "10.10.1.1"
-  lan_subnet           = "10.10.1.1/16"
-  cluster_name         = "jdella-com-prd"
+  node_template   = "ubuntu-2204-cloudinit-template"
+  network_gateway = "10.10.1.1"
+  lan_subnet      = "10.10.1.1/16"
+  cluster_name    = "jdella-com-prd"
   # Enabling this setting disables the MariaDB support instance for the cluster.
   # Changing this will trigger a cluster rebuild
   # The main advantage of enabling embedded etcd is the cluster no longer has a single point of failure. But can increase resource usage.
@@ -37,15 +37,15 @@ module "k3s" {
     # DB related settings are ignored when cluster_enable_embedded_etcd = true
     # If using embedded etcd the resources here should be dramatically reduced as Nginx is the main process running.
     # Conversely the storage and specs for the control plane nodes should be increased.
-    cores        = 2
-    sockets      = 1
-    memory       = 1024
-    storage_type = "scsi"
-    storage_id   = "pve-ssd"
-    disk_size    = "16G"
-    storage_type = "scsi"
-    user         = "support"
-    network_tag  = -1
+    cores          = 2
+    sockets        = 1
+    memory         = 1024
+    storage_type   = "scsi"
+    storage_id     = "pve-ssd"
+    disk_size      = "16G"
+    storage_type   = "scsi"
+    user           = "support"
+    network_tag    = -1
     db_name        = "k3s"
     db_user        = "k3s"
     network_bridge = "vmbr0"
@@ -61,51 +61,51 @@ module "k3s" {
 
   # These are not rolled as a pool but individually.
   master_nodes = [
-  {
-    target_node  = "pve-prd0"
-    cores        = 2
-    sockets      = 1
-    memory       = 2048
-    storage_type = "scsi"
-    storage_id   = "pve-ssd"
-    user         = "k3s"
-    # Set disk_size much higher if using embedded etcd
-    disk_size      = "240G"
-    user           = "k3s"
-    network_bridge = "vmbr0"
-    network_tag    = -1
-    user           = "k3s"
-  },
-  {
-    target_node  = "pve-prd1"
-    cores        = 2
-    sockets      = 1
-    memory       = 2048
-    storage_type = "scsi"
-    storage_id   = "pve-ssd"
-    user         = "k3s"
-    # Set disk_size much higher if using embedded etcd
-    disk_size      = "240G"
-    user           = "k3s"
-    network_bridge = "vmbr0"
-    network_tag    = -1
-    user           = "k3s"
-  },
-  {
-    target_node  = "pve-prd2"
-    cores        = 2
-    sockets      = 1
-    memory       = 2048
-    storage_type = "scsi"
-    storage_id   = "pve-ssd"
-    user         = "k3s"
-    # Set disk_size much higher if using embedded etcd
-    disk_size      = "240G"
-    user           = "k3s"
-    network_bridge = "vmbr0"
-    network_tag    = -1
-    user           = "k3s"
-  }
+    {
+      target_node  = "pve-prd0"
+      cores        = 2
+      sockets      = 1
+      memory       = 2048
+      storage_type = "scsi"
+      storage_id   = "pve-ssd"
+      user         = "k3s"
+      # Set disk_size much higher if using embedded etcd
+      disk_size      = "240G"
+      user           = "k3s"
+      network_bridge = "vmbr0"
+      network_tag    = -1
+      user           = "k3s"
+    },
+    {
+      target_node  = "pve-prd1"
+      cores        = 2
+      sockets      = 1
+      memory       = 2048
+      storage_type = "scsi"
+      storage_id   = "pve-ssd"
+      user         = "k3s"
+      # Set disk_size much higher if using embedded etcd
+      disk_size      = "240G"
+      user           = "k3s"
+      network_bridge = "vmbr0"
+      network_tag    = -1
+      user           = "k3s"
+    },
+    {
+      target_node  = "pve-prd2"
+      cores        = 2
+      sockets      = 1
+      memory       = 2048
+      storage_type = "scsi"
+      storage_id   = "pve-ssd"
+      user         = "k3s"
+      # Set disk_size much higher if using embedded etcd
+      disk_size      = "240G"
+      user           = "k3s"
+      network_bridge = "vmbr0"
+      network_tag    = -1
+      user           = "k3s"
+    }
   ]
   node_pools = [
     {

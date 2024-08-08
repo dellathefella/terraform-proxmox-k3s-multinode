@@ -5,8 +5,8 @@ locals {
       for i in range(pool.size) :
       merge(pool.node_pool_settings, {
         target_node = pool.target_node
-        i  = i
-        ip = cidrhost(pool.subnet, i)
+        i           = i
+        ip          = cidrhost(pool.subnet, i)
       })
     ]
   ])
@@ -30,15 +30,15 @@ resource "proxmox_vm_qemu" "k3s-worker" {
 
   clone = var.node_template
 
-  pool = var.proxmox_resource_pool
+  pool   = var.proxmox_resource_pool
   onboot = true
 
   cores   = each.value.cores
   sockets = each.value.sockets
   memory  = each.value.memory
-  scsihw = "virtio-scsi-pci"
+  scsihw  = "virtio-scsi-pci"
   disks {
-    ide{
+    ide {
       ide2 {
         cloudinit {
           storage = each.value.storage_id
@@ -46,7 +46,7 @@ resource "proxmox_vm_qemu" "k3s-worker" {
       }
     }
     # Boot disk
-    scsi{
+    scsi {
       scsi0 {
         disk {
           storage = each.value.storage_id
@@ -84,6 +84,9 @@ resource "proxmox_vm_qemu" "k3s-worker" {
       hagroup,
       hastate
     ]
+    replace_triggered_by = [
+      var.cluster_enable_embedded_etcd
+    ]
   }
 
   os_type = "cloud-init"
@@ -95,28 +98,28 @@ resource "proxmox_vm_qemu" "k3s-worker" {
   sshkeys = file(var.authorized_keys_file)
 
   connection {
-    type = "ssh"
-    user = each.value.user
-    host = each.value.ip
+    type        = "ssh"
+    user        = each.value.user
+    host        = each.value.ip
     private_key = file(var.authorized_private_key_file)
-    agent = false
+    agent       = false
   }
 
   provisioner "remote-exec" {
     inline = ["sleep 5",
-        templatefile("${path.module}/scripts/install-k3s-server.sh.tftpl", {
-        mode         = "agent"
-        tokens       = [random_password.k3s-server-token.result]
-        alt_names    = []
-        disable      = []
-        server_hosts =  ["https://${local.support_node_ip}:6443"]
-        node_taints  = each.value.taints
-        datastores   = []
-        http_proxy  = var.http_proxy
+      templatefile("${path.module}/scripts/install-k3s-server.sh.tftpl", {
+        mode                 = "agent"
+        tokens               = [random_password.k3s-server-token.result]
+        alt_names            = []
+        disable              = []
+        server_hosts         = ["https://${local.support_node_ip}:6443"]
+        node_taints          = each.value.taints
+        datastores           = []
+        http_proxy           = var.http_proxy
         extra_storage_enable = each.value.additonal_storage != null ? true : false
         # This is when initializing etcd for the first time. It is always false on worker nodes.
         embedded_etcd_init = false
       })
-      ,"sleep 5"]
+    , "sleep 5"]
   }
 }

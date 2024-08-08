@@ -92,15 +92,15 @@ variable "support_node_settings" {
     network_tag    = number,
   })
   default = {
-    cores   = 2
-    sockets = 1
-    memory  = 4096
-    storage_id   = "local-lvm"
-    disk_size    = "10G"
-    user         = "support"
-    network_tag  = -1
-    db_name = "k3s"
-    db_user = "k3s"
+    cores          = 2
+    sockets        = 1
+    memory         = 4096
+    storage_id     = "local-lvm"
+    disk_size      = "10G"
+    user           = "support"
+    network_tag    = -1
+    db_name        = "k3s"
+    db_user        = "k3s"
     network_bridge = "vmbr0"
   }
 }
@@ -123,27 +123,27 @@ variable "master_nodes" {
 variable "node_pools" {
   description = "Node pool definitions for the cluster."
   type = list(object({
-    size   = number,
-    subnet = string,
-    target_node  = string,
+    size        = number,
+    subnet      = string,
+    target_node = string,
     node_pool_settings = object({
-    name           = string,
-    taints         = list(string),
-    cores          = number,
-    sockets        = number,
-    memory         = number,
-    storage_id     = string,
-    disk_size      = string,
-    user           = string,
-    network_bridge = string,
-    network_tag    = number,
-    additonal_storage = optional(object({
+      name           = string,
+      taints         = list(string),
+      cores          = number,
+      sockets        = number,
+      memory         = number,
       storage_id     = string,
       disk_size      = string,
-    }), null)
-  })
+      user           = string,
+      network_bridge = string,
+      network_tag    = number,
+      additonal_storage = optional(object({
+        storage_id = string,
+        disk_size  = string,
+      }), null)
+    })
   }))
-  
+
 }
 
 variable "api_hostnames" {
