@@ -74,7 +74,7 @@ module "k3s" {
         sockets = 1
         memory = 2048
         storage_id   = "pve-ssd"
-        disk_size    = "120G"
+        disk_size    = "240G"
         storage_type = "scsi"
         user         = "support"
         network_tag  = -1
@@ -98,14 +98,12 @@ module "k3s" {
         memory         = 2048
         storage_id     = "pve-ssd"
         user           = "k3s"
-        disk_size      = "8G"
+        disk_size      = "32G"
         user           = "k3s"
         network_bridge = "vmbr0"
         network_tag    = -1
         user           = "k3s"
     }
-
-    # 192.168.0.200 -> 192.168.0.207 (6 available IPs for nodes)
 
     node_pools = [
         {
@@ -125,6 +123,10 @@ module "k3s" {
           user           = "k3s"
           network_bridge = "vmbr0"
           network_tag    = -1
+          additonal_storage = {
+            storage_id     = "pve-hdd"
+            disk_size      = "1500G"
+          }
         }
         },
         {
@@ -144,6 +146,10 @@ module "k3s" {
           user           = "k3s"
           network_bridge = "vmbr0"
           network_tag    = -1
+          additonal_storage = {
+            storage_id     = "pve-hdd"
+            disk_size      = "1500G"
+          }
         },
         },
         {
@@ -163,6 +169,10 @@ module "k3s" {
           user           = "k3s"
           network_bridge = "vmbr0"
           network_tag    = -1
+          additonal_storage = {
+            storage_id     = "pve-hdd"
+            disk_size      = "1500G"
+          }
         }
         }
     ]
