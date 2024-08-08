@@ -35,6 +35,7 @@ resource "proxmox_vm_qemu" "k3s-support" {
     scsi{
       scsi0 {
         disk {
+          replicate = true
           storage = local.support_node_settings.storage_id
           size    = local.support_node_settings.disk_size
         }

@@ -118,6 +118,7 @@ resource "proxmox_vm_qemu" "k3s-worker" {
         node_taints  = each.value.taints
         datastores   = []
         http_proxy  = var.http_proxy
+        extra_storage_enable = each.value.additonal_storage != null ? true : false
       })
       ,"sleep 5"]
   }

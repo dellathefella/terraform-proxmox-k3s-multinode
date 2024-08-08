@@ -3,6 +3,21 @@ export HTTPS_PROXY="${http_proxy}"
 export http_proxy="${http_proxy}"
 export https_proxy="${http_proxy}"
 
+setup_extra_storage() {
+    sudo mkdir -p /mnt/sdb1 &&
+    sudo wipefs -a /dev/sdb &&
+    sudo parted -s /dev/sdb mklabel gpt &&
+    sudo parted -s /dev/sdb mkpart primary ext4 0% 100% && 
+    yes | sudo mkfs.ext4 /dev/sdb1 &&
+    echo "/dev/sdb1 /mnt/sdb1 ext4 defaults 0 0" | sudo tee -a /etc/fstab &&
+    sudo mount -a &&
+    sleep 5
+}
+
+%{ if extra_storage_enable == true ~}
+setup_extra_storage
+%{ endif ~}
+
 curl -sfL https://get.k3s.io | sh -s - ${mode} \
 %{ for component in disable ~}
 --disable ${component} \

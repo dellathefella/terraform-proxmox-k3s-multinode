@@ -100,6 +100,8 @@ resource "proxmox_vm_qemu" "k3s-master" {
           password = random_password.k3s-master-db-password.result
         }]
         http_proxy  = var.http_proxy
+        # Master nodes do not have extra storage
+        extra_storage_enable = false
       })
     ,"sleep 5"]
   }
