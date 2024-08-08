@@ -1,9 +1,11 @@
 locals {
   listed_master_nodes = flatten([
     for i, master_node in var.master_nodes : merge(master_node, {
-      name = "${var.cluster_name}-master-${i}"
-      i    = i
+      name                         = "${var.cluster_name}-master-${i}"
+      i                            = i
+      # Used to force replacement
     ip = cidrhost(var.control_plane_subnet, i + 1) })
+
   ])
 
   mapped_master_nodes = {
@@ -72,9 +74,7 @@ resource "proxmox_vm_qemu" "k3s-master" {
       hagroup,
       hastate
     ]
-    replace_triggered_by = [
-      var.cluster_enable_embedded_etcd
-    ]
+    replace_triggered_by = [terraform_data.cluster_enable_embedded_etcd]
   }
 
   os_type = "cloud-init"

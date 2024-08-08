@@ -84,9 +84,8 @@ resource "proxmox_vm_qemu" "k3s-worker" {
       hagroup,
       hastate
     ]
-    replace_triggered_by = [
-      var.cluster_enable_embedded_etcd
-    ]
+    replace_triggered_by = [terraform_data.cluster_enable_embedded_etcd]
+
   }
 
   os_type = "cloud-init"
