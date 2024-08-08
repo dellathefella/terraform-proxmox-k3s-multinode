@@ -13,13 +13,14 @@ A module for spinning up an expandable and flexible K3s server for your HomeLab 
 ## Creating the Ubuntu 23.04 template(s)
 Because of limitations of Proxmox is able to use templates we need to create a template on each node with an incrementing QMID. These templates will be identical.
 ```sh
-export QMID=8003
-cd /var/lib/vz/template/iso; wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img;
-qm create $QMID --name "ubuntu-2304-cloudinit-template" --memory 4096 --cores 2 --net0 virtio,bridge=vmbr0;
-qm importdisk $QMID jammy-server-cloudimg-amd64.img local-lvm;
-qm set $QMID --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-$QMID-disk-0;
-qm set $QMID --ide2 local-lvm:cloudinit;
-qm set $QMID --boot c --bootdisk scsi0;
+export QMID=8002
+cd /var/lib/vz/template/iso &&
+wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img &&
+qm create $QMID --name "ubuntu-2204-cloudinit-template" --memory 4096 --cores 2 --net0 virtio,bridge=vmbr0 &&
+qm importdisk $QMID jammy-server-cloudimg-amd64.img local-lvm &&
+qm set $QMID --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-$QMID-disk-0 &&
+qm set $QMID --ide2 local-lvm:cloudinit &&
+qm set $QMID --boot c --bootdisk scsi0 &&
 qm template $QMID
 ```
 
@@ -64,7 +65,7 @@ module "k3s" {
 
     #Support node if none specified installs onto entry point node
     proxmox_support_node = "pve-prd0"
-    node_template = "ubuntu-2304-cloudinit-template"
+    node_template = "ubuntu-2204-cloudinit-template"
     network_gateway = "10.10.1.1"
     lan_subnet = "10.10.1.1/16"
     cluster_name = "jdella-com-prd"
