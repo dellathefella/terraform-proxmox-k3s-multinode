@@ -1,8 +1,8 @@
 locals {
   listed_master_nodes = flatten([
     for i, master_node in var.master_nodes : merge(master_node, {
-      name                         = "${var.cluster_name}-master-${i}"
-      i                            = i
+      name = "${var.cluster_name}-master-${i}"
+      i    = i
       # Used to force replacement
     ip = cidrhost(var.control_plane_subnet, i + 1) })
 
@@ -72,8 +72,7 @@ resource "proxmox_vm_qemu" "k3s-master" {
       disks,
       network,
       hagroup,
-      hastate,
-      var.cluster_enable_embedded_etcd
+      hastate
     ]
   }
 

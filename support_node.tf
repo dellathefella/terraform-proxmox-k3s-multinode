@@ -57,8 +57,7 @@ resource "proxmox_vm_qemu" "k3s-support" {
       disks,
       network,
       hagroup,
-      hastate,
-      var.cluster_enable_embedded_etcd
+      hastate
     ]
   }
 
