@@ -82,7 +82,7 @@ resource "proxmox_vm_qemu" "k3s-worker" {
       disks,
       network,
       hagroup,
-      hastate
+      hastate,
       var.cluster_enable_embedded_etcd
     ]
 
