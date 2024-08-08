@@ -114,11 +114,13 @@ resource "proxmox_vm_qemu" "k3s-worker" {
         tokens       = [random_password.k3s-server-token.result]
         alt_names    = []
         disable      = []
-        server_hosts = ["https://${local.support_node_ip}:6443"]
+        server_hosts =  ["https://${local.support_node_ip}:6443"]
         node_taints  = each.value.taints
         datastores   = []
         http_proxy  = var.http_proxy
         extra_storage_enable = each.value.additonal_storage != null ? true : false
+        # This is when initializing etcd for the first time. It is always false on worker nodes.
+        embedded_etcd_init = false
       })
       ,"sleep 5"]
   }

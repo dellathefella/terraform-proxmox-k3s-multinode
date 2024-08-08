@@ -37,4 +37,7 @@ curl -sfL https://get.k3s.io | sh -s - ${mode} \
 %{ for db in datastores ~}
 --datastore-endpoint="mysql://${db.user}:${db.password}@tcp(${db.host})/${db.name}" \
 %{ endfor ~}
+%{ if embedded_etcd_init == true ~}
+--cluster-init
+%{ endif ~}
 --log $HOME/.k3s-install-log.txt

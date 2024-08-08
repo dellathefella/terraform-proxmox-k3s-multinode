@@ -13,7 +13,7 @@ export https_proxy="${http_proxy}"
 mariadb() {
     echo "\e[1;33;4;44mProvisioning delay to ensure VM is online.\e[0m" || exit 1 
     sleep 10 &&
-    sudo -E apt install mariadb-server -y &&
+    DEBIAN_FRONTEND=noninteractive sudo -E apt install mariadb-server -y &&
     # Make mariadb listen to all remote requests
     sudo sed -i -e 's/\(bind-address\s*=\s*\)[0-9.]*/\10.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf &&
     echo "\e[1;33;4;44mDatabase now listening on all ports.\e[0m" &&
@@ -37,10 +37,13 @@ mariadb() {
 nginx() {
     echo "\e[1;33;4;44mProvisioning delay to ensure VM is online.\e[0m" &&
     sleep 10 &&
-    sudo -E apt install nginx -y &&
+    DEBIAN_FRONTEND=noninteractive sudo -E apt install nginx -y &&
     echo "\e[1;33;4;44mNGINX installed.\e[0m"
 }
+
 sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf &&
 sleep 10 &&
+%{ if embedded_etcd_init != true ~}
 mariadb
+%{ endif ~}
 nginx

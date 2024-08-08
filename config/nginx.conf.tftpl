@@ -16,6 +16,16 @@ stream {
         proxy_pass k3s_servers;
     }
 
+    server {
+        listen 2379;
+        proxy_pass k3s_servers;
+    }
+
+    server {
+        listen 2380;
+        proxy_pass k3s_servers;
+    }
+
     upstream k3s_nodes_ingress_http {
         %{ for ip in k3s_nodes ~}
         server ${ip}:80;
@@ -29,8 +39,13 @@ stream {
     }
 
     server {
-        listen 443;
+        listen 80;
         proxy_pass k3s_nodes_ingress_http;
+    }
+
+    server {
+        listen 443;
+        proxy_pass k3s_nodes_ingress_https;
     }
 
 

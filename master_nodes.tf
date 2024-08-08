@@ -85,23 +85,28 @@ resource "proxmox_vm_qemu" "k3s-master" {
   }
 
   provisioner "remote-exec" {
-    inline = ["sleep 5",
+    # Any additional node past the first one sleeps for extra time to ensure etcd can be bootstrapped in time.
+    inline = ["sleep ${(count.index+1)*10}",
       templatefile("${path.module}/scripts/install-k3s-server.sh.tftpl", {
         mode         = "server"
         tokens       = [random_password.k3s-server-token.result]
         alt_names    = concat([local.support_node_ip], var.api_hostnames)
-        server_hosts = []
+        # Skip first host for server hosts if embedded etcd is turned on
+        server_hosts = var.cluster_enable_embedded_etcd == true && count.index != 0 ? ["https://${local.master_node_ips[0]}:6443"] : []
         node_taints  = ["CriticalAddonsOnly=true:NoExecute"]
         disable      = var.k3s_disable_components
-        datastores = [{
+        # Datastores are not enabled if embedded etcd is enabled
+        datastores = var.cluster_enable_embedded_etcd == false ? [{
           host     = "${local.support_node_ip}:3306"
           name     = "k3s"
           user     = "k3s"
           password = random_password.k3s-master-db-password.result
-        }]
+        }] : []
         http_proxy  = var.http_proxy
         # Master nodes do not have extra storage
         extra_storage_enable = false
+        # Embedded etcd init if first control plane node and embedded etcd is enable. 
+        embedded_etcd_init = count.index == 0 && var.cluster_enable_embedded_etcd == true ? true : false
       })
     ,"sleep 5"]
   }

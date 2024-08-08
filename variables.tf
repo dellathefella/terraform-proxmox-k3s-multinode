@@ -57,6 +57,12 @@ variable "cluster_name" {
   description = "Name of the cluster used for prefixing cluster components (ie nodes)."
 }
 
+variable "cluster_enable_embedded_etcd" {
+  default     = false
+  type        = bool
+  description = "Determines whether or not embedded etcd will be used."
+}
+
 variable "node_template" {
   type        = string
   description = <<EOF

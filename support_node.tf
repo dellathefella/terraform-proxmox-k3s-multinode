@@ -87,6 +87,7 @@ resource "proxmox_vm_qemu" "k3s-support" {
       k3s_user     = local.support_node_settings.db_user
       k3s_password = random_password.k3s-master-db-password.result
       http_proxy  = var.http_proxy
+      embedded_etcd_init = var.cluster_enable_embedded_etcd
     })
   }
 
