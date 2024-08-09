@@ -118,6 +118,8 @@ resource "null_resource" "k3s_nginx_config" {
 
   triggers = {
     config_change = filemd5("${path.module}/config/nginx.conf.tftpl")
+    master_nodes_change = "${length(local.listed_master_nodes)}"
+    worker_nodes_change = "${length(local.listed_worker_nodes)}"
   }
 
   connection {
