@@ -1,14 +1,3 @@
-variable "proxmox_node" {
-  description = "Proxmox node to create VMs on."
-  type        = string
-  default     = ""
-}
-variable "proxmox_support_node" {
-  description = "Proxmox node to create VMs on."
-  type        = string
-  default     = ""
-}
-
 variable "ubuntu_version" {
   description = "Ubuntu version; an additional dependency needs to be installed for NGINX to work correctly in Ubuntu 24.04"
   type        = number
@@ -87,6 +76,7 @@ variable "proxmox_resource_pool" {
 variable "support_node_settings" {
   description = "Default settings values for support nodes"
   type = object({
+    target_node    = string,
     cores          = number,
     sockets        = number,
     memory         = number,
@@ -99,6 +89,7 @@ variable "support_node_settings" {
     network_tag    = number,
   })
   default = {
+    target_node    = "pve"
     cores          = 2
     sockets        = 1
     memory         = 4096

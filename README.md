@@ -71,7 +71,6 @@ module "k3s" {
   source                      = "git::github.com/dellathefella/terraform-proxmox-k3s-multinode"
   authorized_keys_file        = "~/.ssh/id_rsa.pub"
   authorized_private_key_file = "~/.ssh/id_rsa"
-  proxmox_node                = "pve-prd0"
   ubuntu_version       = 24
   #Support node if none specified installs onto entry point node
   node_template        = "ubuntu-2404-cloudinit-template"
@@ -84,8 +83,8 @@ module "k3s" {
   cluster_enable_embedded_etcd = true
 
   # Support node settings
-  proxmox_support_node = "pve-prd0"
   support_node_settings = {
+    target_node = "pve-prd0"
     # DB related settings are ignored when cluster_enable_embedded_etcd = true
     # If using embedded etcd the resources here should be dramatically reduced as Nginx is the main process running.
     # Conversely the storage and specs for the control plane nodes should be increased.
