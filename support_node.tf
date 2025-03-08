@@ -80,10 +80,10 @@ resource "proxmox_vm_qemu" "k3s-support" {
   provisioner "file" {
     destination = "/tmp/install.sh"
     content = templatefile("${path.module}/scripts/install-support-apps.sh.tftpl", {
-      root_password      = random_password.support-db-password.result
+      root_password      = random_password.support-user-password.result
       k3s_database       = local.support_node_settings.db_name
       k3s_user           = local.support_node_settings.db_user
-      k3s_password       = random_password.k3s-master-db-password.result
+      k3s_password       = random_password.k3s-mariadb-password.result
       http_proxy         = var.http_proxy
       embedded_etcd_init = var.cluster_enable_embedded_etcd
       ubuntu_version     = var.ubuntu_version
@@ -99,13 +99,13 @@ resource "proxmox_vm_qemu" "k3s-support" {
   }
 }
 
-resource "random_password" "support-db-password" {
+resource "random_password" "support-user-password" {
   length           = 16
   special          = false
   override_special = "_%@"
 }
 
-resource "random_password" "k3s-master-db-password" {
+resource "random_password" "k3s-mariadb-password" {
   length           = 16
   special          = false
   override_special = "_%@"
