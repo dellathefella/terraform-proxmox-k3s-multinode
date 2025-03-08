@@ -86,6 +86,7 @@ resource "proxmox_vm_qemu" "k3s-support" {
       k3s_password       = random_password.k3s-master-db-password.result
       http_proxy         = var.http_proxy
       embedded_etcd_init = var.cluster_enable_embedded_etcd
+      ubuntu_version     = var.ubuntu_version
     })
   }
 
@@ -117,7 +118,7 @@ resource "null_resource" "k3s_nginx_config" {
   ]
 
   triggers = {
-    config_change = filemd5("${path.module}/config/nginx.conf.tftpl")
+    config_change       = filemd5("${path.module}/config/nginx.conf.tftpl")
     master_nodes_change = "${length(local.listed_master_nodes)}"
     worker_nodes_change = "${length(local.listed_worker_nodes)}"
   }

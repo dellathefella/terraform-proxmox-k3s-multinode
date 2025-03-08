@@ -8,6 +8,13 @@ variable "proxmox_support_node" {
   type        = string
   default     = ""
 }
+
+variable "ubuntu_version" {
+  description = "Ubuntu version; an additional dependency needs to be installed for NGINX to work correctly in Ubuntu 24.04"
+  type        = number
+  default     = 24
+}
+
 variable "authorized_keys_file" {
   description = "Path to file containing public SSH keys for remoting into nodes."
   type        = string

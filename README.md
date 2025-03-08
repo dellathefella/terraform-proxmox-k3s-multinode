@@ -18,15 +18,27 @@ A module for spinning up an expandable and flexible K3s server for your HomeLab 
 - A cloneable or template VM that supports Cloud-init and is based on Debian(ideally Ubuntu server) Guide outlined below on how to do that.
 - At least 2 CIDR ranges for master and worker nodes NOT handed out by DHCP (All Nodes are configured with static IPs from these ranges)
 
-## Creating the Ubuntu 22.04 template(s)
+## Creating the Ubuntu 22.04 or 24.04 template(s)
 Because of limitations of the way Proxmox uses templates we need to create a template on each node with an incrementing QMID. These templates will be identical but the QMID will be different. You can delete these when you are done if you don't plan on modifying the cluster.
 ```sh
+
+# Ubuntu 22.04
 export QMID=8002
-# Each host needs a different template ID.
 cd /var/lib/vz/template/iso &&
 wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img &&
 qm create $QMID --name "ubuntu-2204-cloudinit-template" --memory 4096 --cores 2 --net0 virtio,bridge=vmbr0 &&
 qm importdisk $QMID jammy-server-cloudimg-amd64.img local-lvm &&
+qm set $QMID --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-$QMID-disk-0 &&
+qm set $QMID --ide2 local-lvm:cloudinit &&
+qm set $QMID --boot c --bootdisk scsi0 &&
+qm template $QMID
+
+# Ubuntu 24.04
+export QMID=8003
+cd /var/lib/vz/template/iso &&
+wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img &&
+qm create $QMID --name "ubuntu-2404-cloudinit-template" --memory 4096 --cores 2 --net0 virtio,bridge=vmbr0 &&
+qm importdisk $QMID noble-server-cloudimg-amd64.img local-lvm &&
 qm set $QMID --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-$QMID-disk-0 &&
 qm set $QMID --ide2 local-lvm:cloudinit &&
 qm set $QMID --boot c --bootdisk scsi0 &&
@@ -60,9 +72,9 @@ module "k3s" {
   authorized_keys_file        = "~/.ssh/id_rsa.pub"
   authorized_private_key_file = "~/.ssh/id_rsa"
   proxmox_node                = "pve-prd0"
-
+  ubuntu_version       = 24
   #Support node if none specified installs onto entry point node
-  node_template        = "ubuntu-2204-cloudinit-template"
+  node_template        = "ubuntu-2404-cloudinit-template"
   network_gateway      = "10.10.1.1"
   lan_subnet           = "10.10.1.1/16"
   cluster_name         = "jdella-com-prd"

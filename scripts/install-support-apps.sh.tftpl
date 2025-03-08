@@ -37,6 +37,9 @@ mariadb() {
 nginx() {
     echo "\e[1;33;4;44mProvisioning delay to ensure VM is online.\e[0m" &&
     sleep 10 &&
+    %{if ubuntu_version == 24 } 
+    DEBIAN_FRONTEND=noninteractive sudo -E apt install libnginx-mod-stream -y &&
+    %{endif}
     DEBIAN_FRONTEND=noninteractive sudo -E apt install nginx -y &&
     echo "\e[1;33;4;44mNGINX installed.\e[0m"
 }
