@@ -24,8 +24,8 @@ Because of limitations of the way Proxmox uses templates we need to create a tem
 export QMID=8002
 # Each host needs a different template ID.
 cd /var/lib/vz/template/iso &&
-wget https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img &&
-qm create $QMID --name "ubuntu-2404-cloudinit-template" --memory 4096 --cores 2 --net0 virtio,bridge=vmbr0 &&
+wget https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img &&
+qm create $QMID --name "ubuntu-2204-cloudinit-template" --memory 4096 --cores 2 --net0 virtio,bridge=vmbr0 &&
 qm importdisk $QMID jammy-server-cloudimg-amd64.img local-lvm &&
 qm set $QMID --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-$QMID-disk-0 &&
 qm set $QMID --ide2 local-lvm:cloudinit &&
@@ -62,7 +62,7 @@ module "k3s" {
   proxmox_node                = "pve-prd0"
 
   #Support node if none specified installs onto entry point node
-  node_template        = "ubuntu-2404-cloudinit-template"
+  node_template        = "ubuntu-2204-cloudinit-template"
   network_gateway      = "10.10.1.1"
   lan_subnet           = "10.10.1.1/16"
   cluster_name         = "jdella-com-prd"
