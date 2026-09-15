@@ -41,7 +41,7 @@ then
   export PM_API_TOKEN_SECRET="something-something-something-something"
   ```
 
-  > Find other ways to auth to proxmox by reading [the providor's docs](https://github.com/Telmate/terraform-provider-proxmox/blob/master/docs/index.md).
+  > Find other ways to auth to proxmox by reading [the provider's docs](https://registry.terraform.io/providers/bpg/proxmox/latest/docs).
 4. Run `terraform init` (only needs to be done the first time)
 5. Run `terraform apply`
 6. Review the plan. Make sure it is doing what you expect!

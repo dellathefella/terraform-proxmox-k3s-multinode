@@ -1,12 +1,20 @@
 locals {
+  # Number of worker IDs consumed by pools preceding each pool, so that
+  # vm_id_start + 2 + masters + offset + index is unique across all workers.
+  worker_pool_offsets = [
+    for pi in range(length(var.node_pools)) :
+    sum([for pool in slice(var.node_pools, 0, pi) : pool.size])
+  ]
+
   listed_worker_nodes = flatten([
-    for pool in var.node_pools :
+    for pi, pool in var.node_pools :
     [
       for i in range(pool.size) :
       merge(pool.node_pool_settings, {
         target_node = pool.target_node
         i           = i
-        ip          = cidrhost(pool.subnet, i)
+        vm_id       = var.vm_id_start + 2 + length(var.master_nodes) + local.worker_pool_offsets[pi] + i
+        ip          = cidrhost(pool.subnet, i + 1)
       })
     ]
   ])
@@ -17,104 +25,132 @@ locals {
 
 }
 
-resource "proxmox_vm_qemu" "k3s-worker" {
+resource "proxmox_virtual_environment_vm" "k3s-worker" {
   depends_on = [
-    proxmox_vm_qemu.k3s-support,
-    proxmox_vm_qemu.k3s-master,
+    proxmox_virtual_environment_vm.k3s-support,
+    proxmox_virtual_environment_vm.k3s-master,
   ]
 
   for_each = local.mapped_worker_nodes
 
-  target_node = each.value.target_node
-  name        = "${var.cluster_name}-${each.key}"
+  node_name = each.value.target_node
+  name      = "${var.cluster_name}-${each.key}"
+  vm_id     = each.value.vm_id
 
-  clone = var.node_template
+  clone {
+    vm_id = local.effective_template_vm_id
+  }
 
-  pool   = var.proxmox_resource_pool
-  onboot = true
+  pool_id    = var.proxmox_resource_pool != "" ? var.proxmox_resource_pool : null
+  on_boot    = true
+  protection = var.protection
+  tags       = [var.cluster_name]
 
-  cores   = each.value.cores
-  sockets = each.value.sockets
-  memory  = each.value.memory
-  scsihw  = "virtio-scsi-pci"
-  disks {
-    ide {
-      ide2 {
-        cloudinit {
-          storage = each.value.storage_id
-        }
-      }
-    }
-    # Boot disk
-    scsi {
-      scsi0 {
-        disk {
-          storage = each.value.storage_id
-          size    = each.value.disk_size
-        }
-      }
-      dynamic "scsi1" {
-        for_each = each.value.additonal_storage != null ? [each.value.additonal_storage] : []
-        content {
-          disk {
-            storage = scsi1.value.storage_id
-            size    = scsi1.value.disk_size
-          }
-        }
-      }
+  # Boot last: support -> masters -> workers.
+  startup {
+    order      = "3"
+    up_delay   = "30"
+    down_delay = "30"
+  }
+
+  # The module installs qemu-guest-agent during provisioning; flip
+  # vm_agent_enabled to true after the first apply.
+  agent {
+    enabled = var.vm_agent_enabled
+  }
+
+  stop_on_destroy = true
+
+  cpu {
+    cores   = each.value.cores
+    sockets = each.value.sockets
+    type    = var.cpu_type
+  }
+
+  memory {
+    dedicated = each.value.memory
+  }
+
+  scsi_hardware = "virtio-scsi-pci"
+
+  # Boot disk
+  disk {
+    datastore_id = each.value.storage_id
+    interface    = "scsi0"
+    size         = tonumber(replace(each.value.disk_size, "/[Gg]/", ""))
+  }
+
+  dynamic "disk" {
+    for_each = each.value.additional_storage != null ? [each.value.additional_storage] : []
+    content {
+      datastore_id = disk.value.storage_id
+      interface    = "scsi1"
+      size         = tonumber(replace(disk.value.disk_size, "/[Gg]/", ""))
     }
   }
 
-  network {
-    bridge    = each.value.network_bridge
-    firewall  = true
-    link_down = false
-    model     = "virtio"
-    queues    = 0
-    rate      = 0
-    tag       = each.value.network_tag
+  initialization {
+    datastore_id = each.value.storage_id
+
+    ip_config {
+      ipv4 {
+        address = "${each.value.ip}/${local.lan_subnet_cidr_bitnum}"
+        gateway = var.network_gateway
+      }
+    }
+
+    dns {
+      servers = var.dns_servers
+    }
+
+    user_account {
+      username = each.value.user
+      keys     = [trimspace(file(var.authorized_keys_file))]
+    }
+  }
+
+  network_device {
+    bridge   = each.value.network_bridge
+    firewall = true
+    model    = "virtio"
+    vlan_id  = each.value.network_tag >= 0 ? each.value.network_tag : null
+  }
+
+  operating_system {
+    type = "l26"
   }
 
   lifecycle {
     ignore_changes = [
-      ciuser,
-      sshkeys,
-      disks,
-      network,
-      hagroup,
-      hastate,
+      disk,
+      network_device,
     ]
-
   }
-
-  os_type = "cloud-init"
-
-  ciuser = each.value.user
-
-  ipconfig0 = "ip=${each.value.ip}/${local.lan_subnet_cidr_bitnum},gw=${var.network_gateway}"
-
-  sshkeys = file(var.authorized_keys_file)
 
   connection {
     type        = "ssh"
     user        = each.value.user
     host        = each.value.ip
-    private_key = file(var.authorized_private_key_file)
-    agent       = false
+    private_key = var.ssh_agent_auth ? null : file(var.authorized_private_key_file)
+    agent       = var.ssh_agent_auth
   }
 
   provisioner "remote-exec" {
     inline = ["sleep 5",
-      templatefile("${path.module}/scripts/install-k3s-server.sh.tftpl", {
-        mode                 = "agent"
-        tokens               = [random_password.k3s-server-token.result]
-        alt_names            = []
-        disable              = []
-        server_hosts         = ["https://${local.support_node_ip}:6443"]
-        node_taints          = each.value.taints
-        datastores           = []
-        http_proxy           = var.http_proxy
-        extra_storage_enable = each.value.additonal_storage != null ? true : false
+      templatefile("${path.module}/scripts/install-k3s.sh.tftpl", {
+        mode                        = "agent"
+        tokens                      = [random_password.k3s-server-token.result]
+        alt_names                   = []
+        disable                     = []
+        server_hosts                = ["https://${local.api_endpoint}:6443"]
+        node_taints                 = each.value.taints
+        datastores                  = []
+        http_proxy                  = var.http_proxy
+        no_proxy                    = local.effective_no_proxy
+        k3s_version                 = var.k3s_version
+        k3s_install_commit          = var.k3s_install_commit
+        etcd_snapshot_schedule_cron = ""
+        extra_storage_enable        = each.value.additional_storage != null ? true : false
         # This is when initializing etcd for the first time. It is always false on worker nodes.
         embedded_etcd_init = false
       })

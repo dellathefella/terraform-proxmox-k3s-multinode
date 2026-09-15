@@ -1,0 +1,20 @@
+#!/bin/bash
+# Installs keepalived on a master node so the API VIP can float to it.
+# Rendered as a no-op when the VIP feature is disabled.
+
+export HTTP_PROXY="${http_proxy}"
+export HTTPS_PROXY="${http_proxy}"
+export http_proxy="${http_proxy}"
+export https_proxy="${http_proxy}"
+export NO_PROXY="${join(",", no_proxy)}"
+export no_proxy="${join(",", no_proxy)}"
+
+%{ if lb_enabled ~}
+[ -f /etc/needrestart/needrestart.conf ] && sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf || true
+DEBIAN_FRONTEND=noninteractive sudo -E apt-get update -y &&
+DEBIAN_FRONTEND=noninteractive sudo -E apt-get install -y keepalived &&
+sudo systemctl enable keepalived &&
+echo "\e[1;33;4;44mKeepalived installed (config pushed separately).\e[0m"
+%{ else ~}
+echo "VIP disabled; nothing to do."
+%{ endif ~}

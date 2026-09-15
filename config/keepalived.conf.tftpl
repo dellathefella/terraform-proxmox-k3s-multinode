@@ -1,0 +1,39 @@
+# Managed by Terraform - do not edit by hand.
+# VIP floats across masters only; each master serves the K3s API directly on
+# :6443, so no proxy is needed. If local k3s goes unhealthy the priority drops
+# and the VIP moves to a healthy master.
+#
+# `nopreempt` (with every node in state BACKUP) means a node that regains health
+# does NOT immediately grab the VIP back. This avoids a second failover flap every
+# time a master restarts; the VIP only moves again on the next real failure. The
+# trade-off is that after recovery the VIP stays on the failover node until that
+# node also fails - intentional, to keep churn down.
+vrrp_script chk_k3s {
+    script "/bin/systemctl is-active --quiet k3s"
+    interval 2
+    weight -60
+    fall 3
+    rise 2
+}
+
+vrrp_instance K3S_API {
+    state BACKUP
+    nopreempt
+    interface ${interface}
+    virtual_router_id ${router_id}
+    priority ${priority}
+    advert_int 1
+
+    authentication {
+        auth_type PASS
+        auth_pass ${auth_pass}
+    }
+
+    virtual_ipaddress {
+        ${vip}/32 dev ${interface}
+    }
+
+    track_script {
+        chk_k3s
+    }
+}
