@@ -150,6 +150,7 @@ resource "proxmox_virtual_environment_vm" "k3s-master" {
         # Skip first host for server hosts if embedded etcd is turned on
         server_hosts = var.cluster_enable_embedded_etcd == true && each.value.i != 0 ? ["https://${local.listed_master_nodes[0].ip}:6443"] : []
         node_taints  = var.master_taints
+        node_labels  = each.value.node_labels
         disable      = var.k3s_disable_components
         # Datastores are not enabled if embedded etcd is enabled
         datastores = var.cluster_enable_embedded_etcd == false ? [{
@@ -164,6 +165,7 @@ resource "proxmox_virtual_environment_vm" "k3s-master" {
         k3s_install_commit          = var.k3s_install_commit
         cluster_cidr                = var.cluster_cidr
         service_cidr                = var.service_cidr
+        extra_args                  = var.k3s_extra_server_args
         etcd_snapshot_schedule_cron = var.etcd_snapshot_schedule_cron
         # Master nodes do not have extra storage
         extra_storage_enable = false

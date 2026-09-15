@@ -1,32 +1,32 @@
 
 output "k3s_db_password" {
-  value     = random_password.k3s-mariadb-password.result
+  value     = var.support_node_enabled ? random_password.k3s-mariadb-password.result : null
   sensitive = true
 }
 
 output "k3s_db_name" {
-  value = local.support_node_settings.db_name
+  value = var.support_node_enabled ? local.support_node_settings.db_name : null
 }
 
 output "k3s_db_user" {
-  value = local.support_node_settings.db_user
+  value = var.support_node_enabled ? local.support_node_settings.db_user : null
 }
 
 output "k3s_db_host" {
-  value = "${local.support_node_ip}:3306"
+  value = var.support_node_enabled ? "${local.support_node_ip}:3306" : null
 }
 
 output "root_db_password" {
-  value     = random_password.support-user-password.result
+  value     = var.support_node_enabled ? random_password.support-user-password.result : null
   sensitive = true
 }
 
 output "support_node_ip" {
-  value = local.support_node_ip
+  value = var.support_node_enabled ? local.support_node_ip : null
 }
 
 output "support_node_user" {
-  value = local.support_node_settings.user
+  value = var.support_node_enabled ? local.support_node_settings.user : null
 }
 
 output "k3s_server_token" {

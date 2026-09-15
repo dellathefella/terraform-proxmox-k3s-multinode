@@ -40,6 +40,8 @@ locals {
 }
 
 resource "proxmox_virtual_environment_vm" "k3s-support" {
+  count = var.support_node_enabled ? 1 : 0
+
   node_name = local.support_node_settings.target_node
   name      = join("-", [var.cluster_name, "support"])
   vm_id     = var.vm_id_start + 1
@@ -211,4 +213,27 @@ resource "null_resource" "k3s_keepalived_config" {
   }
 
   depends_on = [proxmox_virtual_environment_vm.k3s-master]
+}
+
+# When the datastore is MariaDB (not embedded etcd), the masters must reach the
+# support node on 3306. With the Proxmox firewall enabled this IN rule lets the
+# control-plane subnet through; inert otherwise. Skipped when the support node is
+# disabled or embedded etcd is used.
+resource "proxmox_virtual_environment_firewall_rules" "k3s_support_mariadb" {
+  count = (!var.cluster_enable_embedded_etcd && var.support_node_enabled) ? 1 : 0
+
+  node_name = local.support_node_settings.target_node
+  vm_id     = var.vm_id_start + 1
+
+  rule {
+    comment = "Allow k3s control plane to reach the MariaDB datastore"
+    type    = "IN"
+    action  = "ACCEPT"
+    proto   = "tcp"
+    dport   = "3306"
+    source  = var.control_plane_subnet
+    enabled = true
+  }
+
+  depends_on = [proxmox_virtual_environment_vm.k3s-support]
 }

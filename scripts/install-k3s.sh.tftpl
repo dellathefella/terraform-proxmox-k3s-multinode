@@ -69,6 +69,9 @@ curl -sfL https://get.k3s.io | sh -s - ${mode} \
 %{ for taint in node_taints ~}
 --node-taint "${ taint }" \
 %{ endfor ~}
+%{ for label in node_labels ~}
+--node-label "${label}" \
+%{ endfor ~}
 %{ for db in datastores ~}
 --datastore-endpoint="mysql://${db.user}:${db.password}@tcp(${db.host})/${db.name}" \
 %{ endfor ~}
@@ -81,7 +84,7 @@ curl -sfL https://get.k3s.io | sh -s - ${mode} \
 %{ if mode == "server" && service_cidr != "" ~}
 --service-cidr "${service_cidr}" \
 %{ endif ~}
-%{ if etcd_snapshot_schedule_cron != "" ~}
---etcd-snapshot-schedule-cron="${etcd_snapshot_schedule_cron}" \
-%{ endif ~}
+%{ for arg in extra_args ~}
+${arg} \
+%{ endfor ~}
 --log $HOME/.k3s-install-log.txt

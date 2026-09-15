@@ -45,6 +45,11 @@ variable "control_plane_subnet" {
     condition     = can(cidrhost(var.control_plane_subnet, 0))
     error_message = "The control_plane_subnet value must be a valid cidr range."
   }
+
+  validation {
+    condition     = try(length(var.master_nodes) <= pow(2, 32 - tonumber(split("/", var.control_plane_subnet)[1])) - 1, true)
+    error_message = "control_plane_subnet is too small to hold the support node plus all masters (support uses host 0, masters use hosts 1..N)."
+  }
 }
 
 variable "cluster_name" {
@@ -57,6 +62,11 @@ variable "cluster_enable_embedded_etcd" {
   default     = false
   type        = bool
   description = "Determines whether or not embedded etcd will be used."
+
+  validation {
+    condition     = !var.cluster_enable_embedded_etcd || length(var.master_nodes) % 2 == 1
+    error_message = "Embedded etcd needs an odd number of masters (1, 3, 5) for quorum; an even count risks split-brain."
+  }
 }
 
 variable "template_vm_id" {
@@ -153,6 +163,7 @@ variable "master_nodes" {
     user           = string,
     network_bridge = string,
     network_tag    = optional(number, -1),
+    node_labels    = optional(list(string), []),
   }))
 }
 
@@ -186,6 +197,7 @@ variable "node_pools" {
       user           = string,
       network_bridge = string,
       network_tag    = optional(number, -1),
+      node_labels    = optional(list(string), []),
       additional_storage = optional(object({
         storage_id = string,
         disk_size  = string,
@@ -193,6 +205,12 @@ variable "node_pools" {
     })
   }))
 
+  validation {
+    condition = try(alltrue([
+      for pool in var.node_pools : pool.size <= pow(2, 32 - tonumber(split("/", pool.subnet)[1])) - 1
+    ]), true)
+    error_message = "Each worker pool size must fit within its subnet's usable host range (workers use hosts 1..size)."
+  }
 }
 
 variable "api_hostnames" {
@@ -205,6 +223,29 @@ variable "k3s_disable_components" {
   description = "List of components to disable. Ref: https://rancher.com/docs/k3s/latest/en/installation/install-options/server-config/#kubernetes-components"
   type        = list(string)
   default     = []
+}
+
+variable "k3s_extra_server_args" {
+  description = "Extra raw arguments appended to the k3s SERVER install command (e.g. [\"--disable-apiserver=false\", \"--kube-apiserver-arg=some-flag=1\"]). Escape hatch for flags the module doesn't model; values are inserted verbatim."
+  type        = list(string)
+  default     = []
+}
+
+variable "k3s_extra_agent_args" {
+  description = "Extra raw arguments appended to the k3s AGENT install command. Escape hatch for flags the module doesn't model; values are inserted verbatim."
+  type        = list(string)
+  default     = []
+}
+
+variable "support_node_enabled" {
+  description = "Create the support node. With embedded etcd the support VM has no database role and is near-idle, so you can set this to false to free a whole box. Must remain true when cluster_enable_embedded_etcd = false (the support node hosts MariaDB)."
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = var.support_node_enabled || var.cluster_enable_embedded_etcd
+    error_message = "support_node_enabled cannot be false unless cluster_enable_embedded_etcd is true (the support node hosts the MariaDB datastore)."
+  }
 }
 
 variable "k3s_version" {
