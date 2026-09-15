@@ -13,12 +13,29 @@ provider "proxmox" {
   insecure = true
 }
 
+# Topology for 9 identical micro PCs (i5-7500T = 4 cores / 4 threads, 16 GB RAM).
+#
+#   pve-prd0 : support (1c/1G) + master0 (2c/4G)   [co-located, both light]
+#   pve-prd1 : master1 (2c/4G)
+#   pve-prd2 : master2 (2c/4G)
+#   pve-prd3 : worker pool0 (4c/12G)
+#   pve-prd4 : worker pool1 (4c/12G)
+#   pve-prd5 : worker pool2 (4c/12G)
+#   pve-prd6 : worker pool3 (4c/12G)
+#   pve-prd7 : worker pool4 (4c/12G)
+#   pve-prd8 : worker pool5 (4c/12G)
+#
+# 3 masters give an HA embedded-etcd control plane. Each VM leaves ~2-4 GB of
+# host RAM for Proxmox itself (cap ZFS ARC if you use ZFS, e.g. set
+# zfs_arc_max=2147483648 so the ARC doesn't eat the worker's 12 GB).
+#
+# NOTE: storage_id / disk_size below are placeholders - set them to your actual
+# datastores. etcd (masters) wants SSD; workers can use whatever you have.
 module "k3s" {
   source                      = "../"
   authorized_keys_file        = "~/.ssh/id_rsa.pub"
   authorized_private_key_file = "~/.ssh/id_rsa"
 
-  #Support node if none specified installs onto entry point node
   # Numeric VM ID of the debian-13-cloudinit-template (see README template creation)
   template_vm_id = 8003
 
@@ -40,8 +57,8 @@ module "k3s" {
   # DNS servers handed to nodes via cloud-init (nodes use static IPs)
   dns_servers = ["10.10.1.1", "1.1.1.1"]
 
-  # CPU type for all nodes; "host" for max perf if all PVE nodes are compatible
-  cpu_type = "x86-64-v2-AES"
+  # All 9 hosts are the same i5-7500T, so host CPU passthrough is safe and fastest.
+  cpu_type = "host"
 
   # Register masters as Proxmox HA resources (group must already exist)
   # ha_group = "k3s-ha"
@@ -49,24 +66,26 @@ module "k3s" {
   # Guard created VMs against accidental GUI changes
   protection = false
 
-  # Enabling this setting disables the MariaDB support instance for the cluster.
-  # Changing this will trigger a cluster rebuild
-  # The main advantage of enabling embedded etcd is the cluster no longer has a single point of failure. But can increase resource usage.
+  # Floating API VIP (keepalived) across the masters. Free address in the
+  # control-plane block (support=.0, masters=.1-.3, VIP=.7).
+  api_vip        = "10.10.2.7"
+  vrrp_router_id = 51
+  vrrp_auth_pass = "k3svip1" # max 8 chars (VRRPv2)
+
+  # Embedded etcd: HA control plane, no MariaDB single point of failure.
+  # The support node becomes a near-idle placeholder.
   cluster_enable_embedded_etcd = true
 
   # Optionally pin the k3s version (empty = current stable channel)
   # k3s_version = "v1.37.0+k3s1"
 
-  # Support node settings
+  # Support node (co-located on pve-prd0 with master0; minimal with embedded etcd)
   support_node_settings = {
-    target_node = "pve-prd0"
-    # DB related settings are ignored when cluster_enable_embedded_etcd = true
-    # If using embedded etcd the resources here should be dramatically reduced as Nginx is the main process running.
-    # Conversely the storage and specs for the control plane nodes should be increased.
-    cores          = 2
+    target_node    = "pve-prd0"
+    cores          = 1
     sockets        = 1
     memory         = 1024
-    storage_id     = "pve-ssd"
+    storage_id     = "local-lvm"
     disk_size      = "16G"
     user           = "support"
     network_tag    = -1
@@ -75,121 +94,155 @@ module "k3s" {
     network_bridge = "vmbr0"
   }
 
-  # Disable default traefik and servicelb installs for metallb and traefik 2
+  # Disable default traefik and servicelb installs (use MetalLB + Traefik 2)
   k3s_disable_components = [
     "traefik",
     "servicelb"
   ]
-  # 10.10.2.1 - 10.10.2.6	(6 available IPs for nodes)
+
+  # 10.10.2.0/29 -> support .0, masters .1-.3, VIP .7
   control_plane_subnet = "10.10.2.0/29"
 
-  # These are not rolled as a pool but individually.
+  # Control plane: 3 masters on pve-prd0/1/2 (2 cores / 4 GB each)
   master_nodes = [
     {
-      target_node = "pve-prd0"
-      cores       = 2
-      sockets     = 1
-      memory      = 2048
-      storage_id  = "pve-ssd"
-      # Set disk_size much higher if using embedded etcd
-      disk_size      = "240G"
+      target_node    = "pve-prd0"
+      cores          = 2
+      sockets        = 1
+      memory         = 4096
+      storage_id     = "local-lvm"
+      disk_size      = "48G"
       user           = "k3s"
       network_bridge = "vmbr0"
       network_tag    = -1
     },
     {
-      target_node = "pve-prd1"
-      cores       = 2
-      sockets     = 1
-      memory      = 2048
-      storage_id  = "pve-ssd"
-      # Set disk_size much higher if using embedded etcd
-      disk_size      = "240G"
+      target_node    = "pve-prd1"
+      cores          = 2
+      sockets        = 1
+      memory         = 4096
+      storage_id     = "local-lvm"
+      disk_size      = "48G"
       user           = "k3s"
       network_bridge = "vmbr0"
       network_tag    = -1
     },
     {
-      target_node = "pve-prd2"
-      cores       = 2
-      sockets     = 1
-      memory      = 2048
-      storage_id  = "pve-ssd"
-      # Set disk_size much higher if using embedded etcd
-      disk_size      = "240G"
+      target_node    = "pve-prd2"
+      cores          = 2
+      sockets        = 1
+      memory         = 4096
+      storage_id     = "local-lvm"
+      disk_size      = "48G"
       user           = "k3s"
       network_bridge = "vmbr0"
       network_tag    = -1
     }
   ]
+
+  # Workers: one per remaining host (pve-prd3..8), 4 cores / 12 GB each.
+  # Each pool is a single node on its own /29 allocation block.
   node_pools = [
     {
-      # 10.10.2.9 - 10.10.2.14 (6 available IPs for nodes)
-      subnet = "10.10.2.8/29"
-
-      target_node = "pve-prd0"
+      subnet      = "10.10.2.8/29" # worker .9
+      target_node = "pve-prd3"
       size        = 1
       node_pool_settings = {
         name           = "pool0"
         taints         = []
-        cores          = 8
+        cores          = 4
         sockets        = 1
-        memory         = 8192
-        storage_id     = "pve-ssd"
-        disk_size      = "1000G"
+        memory         = 12288
+        storage_id     = "local-lvm"
+        disk_size      = "128G"
         user           = "k3s"
         network_bridge = "vmbr0"
         network_tag    = -1
-        additional_storage = {
-          storage_id = "pve-hdd"
-          disk_size  = "3500G"
-        }
       }
     },
     {
-      # 10.10.2.17 - 10.10.2.22 (6 available IPs for nodes)
-      subnet = "10.10.2.16/29"
-
-      target_node = "pve-prd1"
+      subnet      = "10.10.2.16/29" # worker .17
+      target_node = "pve-prd4"
       size        = 1
       node_pool_settings = {
         name           = "pool1"
         taints         = []
-        cores          = 8
+        cores          = 4
         sockets        = 1
-        memory         = 10240
-        storage_id     = "pve-ssd"
-        disk_size      = "1000G"
+        memory         = 12288
+        storage_id     = "local-lvm"
+        disk_size      = "128G"
         user           = "k3s"
         network_bridge = "vmbr0"
         network_tag    = -1
-        additional_storage = {
-          storage_id = "pve-hdd"
-          disk_size  = "3500G"
-        }
       }
     },
     {
-      # 10.10.2.25 - 10.10.2.30 (6 available IPs for nodes)
-      subnet = "10.10.2.24/29"
-
-      target_node = "pve-prd2"
+      subnet      = "10.10.2.24/29" # worker .25
+      target_node = "pve-prd5"
       size        = 1
       node_pool_settings = {
         name           = "pool2"
         taints         = []
-        cores          = 8
+        cores          = 4
         sockets        = 1
-        memory         = 10240
-        storage_id     = "pve-ssd"
-        disk_size      = "1000G"
+        memory         = 12288
+        storage_id     = "local-lvm"
+        disk_size      = "128G"
         user           = "k3s"
         network_bridge = "vmbr0"
         network_tag    = -1
-        additional_storage = {
-          storage_id = "pve-hdd"
-          disk_size  = "3500G"
-        }
+      }
+    },
+    {
+      subnet      = "10.10.2.32/29" # worker .33
+      target_node = "pve-prd6"
+      size        = 1
+      node_pool_settings = {
+        name           = "pool3"
+        taints         = []
+        cores          = 4
+        sockets        = 1
+        memory         = 12288
+        storage_id     = "local-lvm"
+        disk_size      = "128G"
+        user           = "k3s"
+        network_bridge = "vmbr0"
+        network_tag    = -1
+      }
+    },
+    {
+      subnet      = "10.10.2.40/29" # worker .41
+      target_node = "pve-prd7"
+      size        = 1
+      node_pool_settings = {
+        name           = "pool4"
+        taints         = []
+        cores          = 4
+        sockets        = 1
+        memory         = 12288
+        storage_id     = "local-lvm"
+        disk_size      = "128G"
+        user           = "k3s"
+        network_bridge = "vmbr0"
+        network_tag    = -1
+      }
+    },
+    {
+      subnet      = "10.10.2.48/29" # worker .49
+      target_node = "pve-prd8"
+      size        = 1
+      node_pool_settings = {
+        name           = "pool5"
+        taints         = []
+        cores          = 4
+        sockets        = 1
+        memory         = 12288
+        storage_id     = "local-lvm"
+        disk_size      = "128G"
+        user           = "k3s"
+        network_bridge = "vmbr0"
+        network_tag    = -1
       }
     }
   ]

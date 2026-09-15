@@ -4,19 +4,22 @@ This is an example project for setting up your own K3s cluster at home.
 
 ## Summary
 
+Target hardware: 9 identical micro PCs (i5-7500T = 4 cores / 4 threads, 16 GB RAM).
+
 ### VMs
 This will spin up:
 
-- 1 Support VM with API LoadBalancer and optionally MariaDB K3s database with 2 cores and 8GB of RAM. If embedded etcd only the LoadBalancer is deployed.
-- 3 master nodes spread across each PVE host with 2 cores and 2GB of RAM
-- 2 node pool with 2 worker nodes each having 8 cores and 10GB of RAM
+- 1 Support VM (1 core / 1 GB) co-located on `pve-prd0`. With embedded etcd it is a near-idle placeholder (no MariaDB).
+- 3 master nodes (2 cores / 4 GB each) on `pve-prd0`, `pve-prd1`, `pve-prd2` - HA embedded-etcd control plane.
+- 6 worker nodes (4 cores / 12 GB each), one per remaining host `pve-prd3`..`pve-prd8`, each in its own single-node pool.
 
+Each VM leaves a few GB of host RAM for Proxmox itself. If you use ZFS, cap the ARC (e.g. `zfs_arc_max=2147483648`) so it doesn't compete with the worker's 12 GB.
 
 ### Networking
 
-- The support VM will be spun up on nodes `pve-prd0` using at `10.0.6.0`
-- The masters VMs will be spun up on nodes `pve-prd0`,`pve-prd1` and `pve-prd2` using at `10.10.2.1-10.10.1.3`
-- The masters VMs will be spun up on nodes `pve-prd0`,`pve-prd1` and `pve-prd2` using at `10.10.2.9,10.10.2.17,10.10.2.25`
+- Control-plane block `10.10.2.0/29`: support `10.10.2.0`, masters `10.10.2.1`-`10.10.2.3`, API VIP `10.10.2.7`.
+- Worker pools on `10.10.2.8/29`, `.16/29`, `.24/29`, `.32/29`, `.40/29`, `.48/29` (one worker each: `.9`, `.17`, `.25`, `.33`, `.41`, `.49`).
+- All VMs are addressed with the `/16` mask from `lan_subnet`; the `/29` blocks are just non-overlapping allocation ranges.
 
 > Note: To eliminate potential IP clashing with existing computers on your
 network, it is **STRONGLY** recommended that you take IPs out of your DHCP server's rotation. Otherwise other computers
