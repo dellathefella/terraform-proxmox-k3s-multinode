@@ -8,6 +8,10 @@
 # Crash log files
 crash.log
 
+# Generated kubeconfig written by the module at apply time (contains credentials)
+kubeconfig.yaml
+kubeconfig*.yaml
+
 # Ignore any .tfvars files that are generated automatically for each Terraform run. Most
 # .tfvars files are managed as part of configuration and so should be included in
 # version control.

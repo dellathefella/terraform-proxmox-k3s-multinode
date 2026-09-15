@@ -75,6 +75,12 @@ curl -sfL https://get.k3s.io | sh -s - ${mode} \
 %{ if embedded_etcd_init == true ~}
 --cluster-init \
 %{ endif ~}
+%{ if mode == "server" && cluster_cidr != "" ~}
+--cluster-cidr "${cluster_cidr}" \
+%{ endif ~}
+%{ if mode == "server" && service_cidr != "" ~}
+--service-cidr "${service_cidr}" \
+%{ endif ~}
 %{ if etcd_snapshot_schedule_cron != "" ~}
 --etcd-snapshot-schedule-cron="${etcd_snapshot_schedule_cron}" \
 %{ endif ~}

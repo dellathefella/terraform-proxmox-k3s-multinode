@@ -30,6 +30,9 @@ jobs:
       - name: Validate example
         run: terraform -chdir=example validate
 
+      - name: Run tests
+        run: terraform test
+
       - name: tflint init
         uses: terraform-linters/setup-tflint@v4
         with:

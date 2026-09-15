@@ -149,6 +149,8 @@ resource "proxmox_virtual_environment_vm" "k3s-worker" {
         no_proxy                    = local.effective_no_proxy
         k3s_version                 = var.k3s_version
         k3s_install_commit          = var.k3s_install_commit
+        cluster_cidr                = var.cluster_cidr
+        service_cidr                = var.service_cidr
         etcd_snapshot_schedule_cron = ""
         extra_storage_enable        = each.value.additional_storage != null ? true : false
         # This is when initializing etcd for the first time. It is always false on worker nodes.

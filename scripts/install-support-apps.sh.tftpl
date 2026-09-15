@@ -15,7 +15,7 @@ export no_proxy="${join(",", no_proxy)}"
 mariadb() {
     echo "\e[1;33;4;44mProvisioning delay to ensure VM is online.\e[0m" || exit 1 
     sleep 10 &&
-    DEBIAN_FRONTEND=noninteractive sudo -E apt install mariadb-server -y &&
+    DEBIAN_FRONTEND=noninteractive sudo -E apt-get install mariadb-server -y &&
     # Bind to the control-plane IP only (not 0.0.0.0) so the datastore is only
     # reachable from the control-plane subnet.
     sudo sed -i -e 's/\(bind-address\s*=\s*\)[0-9.]*/\1${bind_address}/g' /etc/mysql/mariadb.conf.d/50-server.cnf &&

@@ -162,6 +162,8 @@ resource "proxmox_virtual_environment_vm" "k3s-master" {
         no_proxy                    = local.effective_no_proxy
         k3s_version                 = var.k3s_version
         k3s_install_commit          = var.k3s_install_commit
+        cluster_cidr                = var.cluster_cidr
+        service_cidr                = var.service_cidr
         etcd_snapshot_schedule_cron = var.etcd_snapshot_schedule_cron
         # Master nodes do not have extra storage
         extra_storage_enable = false

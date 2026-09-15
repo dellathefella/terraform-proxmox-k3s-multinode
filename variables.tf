@@ -226,7 +226,7 @@ variable "protection" {
 }
 
 variable "ssh_binary" {
-  description = "Path to the ssh binary used to fetch the kubeconfig from the first master (data.external)."
+  description = "Path to the ssh binary used to fetch the kubeconfig from the first master at apply time."
   type        = string
   default     = "/usr/bin/ssh"
 }
@@ -255,7 +255,7 @@ variable "no_proxy" {
 }
 
 variable "cluster_cidr" {
-  description = "K3s pod CIDR (cluster-cidr). Appended to NO_PROXY so pod traffic never goes through http_proxy. Must match the --cluster-cidr the cluster is actually using (default K3s value shown)."
+  description = "K3s pod CIDR. Passed to the server as --cluster-cidr AND appended to NO_PROXY so pod traffic never goes through http_proxy. Keep the default unless you set a custom pod CIDR."
   type        = string
   default     = "10.42.0.0/16"
 
@@ -266,7 +266,7 @@ variable "cluster_cidr" {
 }
 
 variable "service_cidr" {
-  description = "K3s service CIDR (service-cidr). Appended to NO_PROXY so service traffic never goes through http_proxy. Must match the --service-cidr the cluster is actually using (default K3s value shown)."
+  description = "K3s service CIDR. Passed to the server as --service-cidr AND appended to NO_PROXY so service traffic never goes through http_proxy. Keep the default unless you set a custom service CIDR."
   type        = string
   default     = "10.43.0.0/16"
 

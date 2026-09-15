@@ -165,9 +165,12 @@ resource "random_password" "support-user-password" {
 }
 
 resource "random_password" "k3s-mariadb-password" {
-  length           = 16
-  special          = true
-  override_special = "_%@"
+  length  = 16
+  special = true
+  # URL-safe only: this password is embedded in the k3s datastore DSN
+  # (mysql://user:pass@tcp(host)/db), so reserved chars like @ : / ? # [ ] %
+  # would corrupt the DSN / trip percent-decoding. Keep to unreserved-safe set.
+  override_special = "_-+"
 }
 
 # Push keepalived config to each master when the API VIP is enabled. Each
