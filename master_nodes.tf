@@ -149,7 +149,7 @@ resource "proxmox_virtual_environment_vm" "k3s-master" {
         alt_names = concat([local.api_endpoint], var.api_hostnames)
         # Skip first host for server hosts if embedded etcd is turned on
         server_hosts = var.cluster_enable_embedded_etcd == true && each.value.i != 0 ? ["https://${local.listed_master_nodes[0].ip}:6443"] : []
-        node_taints  = ["CriticalAddonsOnly=true:NoExecute"]
+        node_taints  = var.master_taints
         disable      = var.k3s_disable_components
         # Datastores are not enabled if embedded etcd is enabled
         datastores = var.cluster_enable_embedded_etcd == false ? [{

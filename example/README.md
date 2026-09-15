@@ -10,10 +10,10 @@ Target hardware: 9 identical micro PCs (i5-7500T = 4 cores / 4 threads, 16 GB RA
 This will spin up:
 
 - 1 Support VM (1 core / 1 GB) co-located on `pve-prd0`. With embedded etcd it is a near-idle placeholder (no MariaDB).
-- 3 master nodes (2 cores / 4 GB each) on `pve-prd0`, `pve-prd1`, `pve-prd2` - HA embedded-etcd control plane.
+- 3 master nodes on `pve-prd0`, `pve-prd1`, `pve-prd2` - HA embedded-etcd control plane. They are **unscheduled-taint-off** (`master_taints = []`), so they also run regular workloads: `master0` 3c/12G (shares the box with support), `master1`/`master2` 4c/12G.
 - 6 worker nodes (4 cores / 12 GB each), one per remaining host `pve-prd3`..`pve-prd8`, each in its own single-node pool.
 
-Each VM leaves a few GB of host RAM for Proxmox itself. If you use ZFS, cap the ARC (e.g. `zfs_arc_max=2147483648`) so it doesn't compete with the worker's 12 GB.
+Because workloads share the master boxes, give them resource requests/limits so they can't starve etcd / the API server. Each VM also leaves a few GB of host RAM for Proxmox itself; if you use ZFS, cap the ARC (e.g. `zfs_arc_max=2147483648`).
 
 ### Networking
 

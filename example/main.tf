@@ -15,9 +15,12 @@ provider "proxmox" {
 
 # Topology for 9 identical micro PCs (i5-7500T = 4 cores / 4 threads, 16 GB RAM).
 #
-#   pve-prd0 : support (1c/1G) + master0 (2c/4G)   [co-located, both light]
-#   pve-prd1 : master1 (2c/4G)
-#   pve-prd2 : master2 (2c/4G)
+# The masters are UNSCHEDULED-TAINT-OFF (master_taints = []), so they run regular
+# workloads in addition to the control plane - no idle cores/RAM on those boxes.
+#
+#   pve-prd0 : support (1c/1G) + master0 (3c/12G, schedulable)
+#   pve-prd1 : master1 (4c/12G, schedulable)
+#   pve-prd2 : master2 (4c/12G, schedulable)
 #   pve-prd3 : worker pool0 (4c/12G)
 #   pve-prd4 : worker pool1 (4c/12G)
 #   pve-prd5 : worker pool2 (4c/12G)
@@ -25,9 +28,13 @@ provider "proxmox" {
 #   pve-prd7 : worker pool4 (4c/12G)
 #   pve-prd8 : worker pool5 (4c/12G)
 #
-# 3 masters give an HA embedded-etcd control plane. Each VM leaves ~2-4 GB of
-# host RAM for Proxmox itself (cap ZFS ARC if you use ZFS, e.g. set
-# zfs_arc_max=2147483648 so the ARC doesn't eat the worker's 12 GB).
+# 3 masters give an HA embedded-etcd control plane. master0 is 3c (not 4c) so it
+# fits alongside the 1c support VM on the 4-core pve-prd0 without CPU overcommit.
+# Each VM leaves a few GB of host RAM for Proxmox itself (cap ZFS ARC if you use
+# ZFS, e.g. zfs_arc_max=2147483648 so the ARC doesn't eat the VM's 12 GB).
+#
+# NOTE: because workloads now share the master boxes, give them resource
+# requests/limits so they can't starve etcd / the API server.
 #
 # NOTE: storage_id / disk_size below are placeholders - set them to your actual
 # datastores. etcd (masters) wants SSD; workers can use whatever you have.
@@ -103,13 +110,18 @@ module "k3s" {
   # 10.10.2.0/29 -> support .0, masters .1-.3, VIP .7
   control_plane_subnet = "10.10.2.0/29"
 
-  # Control plane: 3 masters on pve-prd0/1/2 (2 cores / 4 GB each)
+  # Let regular workloads schedule on the masters (better hardware use).
+  # Set back to ["CriticalAddonsOnly=true:NoExecute"] to reserve them.
+  master_taints = []
+
+  # Control plane: 3 masters on pve-prd0/1/2, schedulable. master0 is 3c so it
+  # fits with the 1c support VM on the 4-core pve-prd0.
   master_nodes = [
     {
       target_node    = "pve-prd0"
-      cores          = 2
+      cores          = 3
       sockets        = 1
-      memory         = 4096
+      memory         = 12288
       storage_id     = "local-lvm"
       disk_size      = "48G"
       user           = "k3s"
@@ -118,9 +130,9 @@ module "k3s" {
     },
     {
       target_node    = "pve-prd1"
-      cores          = 2
+      cores          = 4
       sockets        = 1
-      memory         = 4096
+      memory         = 12288
       storage_id     = "local-lvm"
       disk_size      = "48G"
       user           = "k3s"
@@ -129,9 +141,9 @@ module "k3s" {
     },
     {
       target_node    = "pve-prd2"
-      cores          = 2
+      cores          = 4
       sockets        = 1
-      memory         = 4096
+      memory         = 12288
       storage_id     = "local-lvm"
       disk_size      = "48G"
       user           = "k3s"

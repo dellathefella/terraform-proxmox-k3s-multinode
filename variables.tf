@@ -156,6 +156,18 @@ variable "master_nodes" {
   }))
 }
 
+variable "master_taints" {
+  description = <<-EOF
+  Taints applied to every master node. The default reserves the control plane for
+  critical system pods only (regular workloads won't schedule there). Set to []
+  to let normal workloads run on the masters too - better hardware utilization,
+  but watch etcd CPU/IO contention (use resource requests/limits on workloads so
+  they can't starve the API server / etcd).
+  EOF
+  type        = list(string)
+  default     = ["CriticalAddonsOnly=true:NoExecute"]
+}
+
 
 variable "node_pools" {
   description = "Node pool definitions for the cluster."
