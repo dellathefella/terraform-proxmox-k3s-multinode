@@ -1,12 +1,9 @@
-# EXAMPLE — CloudNativePG cluster on the longhorn-cnpg StorageClass.
+# CloudNativePG example cluster on the longhorn-cnpg StorageClass.
 #
-# This is a reference example, NOT auto-deployed (it lives outside the Flux-synced
-# apps/ tree). To deploy it:
-#   1. Create the bootstrap secret (never committed):
-#        kubectl -n postgres create secret generic pg-sample-app \
-#          --from-literal=username=appuser --from-literal=password=<generated>
-#   2. Apply:
-#        kubectl apply -f gitops/examples/cloudnative-pg/cluster.yaml
+# Wired into gitops/apps/kustomization.yaml as a LIVE example — Flux deploys it
+# on bootstrap. The bootstrap secret is generated there via a kustomize
+# secretGenerator with a PLACEHOLDER password; replace it with a SOPS/Sealed-Secret
+# value before real use.
 #
 # Design: 2 instances = 1 primary + 1 streaming replica. Each instance's data
 # volume is single-replica (longhorn-cnpg); HA comes from CNPG's Postgres

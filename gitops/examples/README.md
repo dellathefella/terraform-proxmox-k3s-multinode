@@ -1,19 +1,21 @@
 # GitOps examples
 
-Reference manifests that are **not** auto-deployed by Flux (this directory is not
-referenced by any Flux `Kustomization`). Copy or `kubectl apply` individual files
-as needed.
+Reference manifests for this cluster.
 
-## cloudnative-pg/cluster.yaml
+## CloudNativePG example (live)
 
-A sample CloudNativePG `Cluster` (2 instances: 1 primary + 1 streaming replica)
-using the `longhorn-cnpg` StorageClass (single-replica, `WaitForFirstConsumer`,
-`Retain`). HA is provided by Postgres streaming replication, not Longhorn
-replication.
+The CNPG example cluster now lives in the Flux-synced tree at
+`gitops/apps/postgres/cluster.yaml` and is wired into
+`gitops/apps/kustomization.yaml`, so Flux deploys it on bootstrap.
+
+- 2 instances: 1 primary + 1 streaming replica.
+- StorageClass `longhorn-cnpg` (single-replica, `WaitForFirstConsumer`, `Retain`).
+- HA via Postgres streaming replication, not Longhorn replication.
+- Bootstrap secret generated in `apps/kustomization.yaml` with a PLACEHOLDER
+  password — replace with SOPS/Sealed Secrets before real use.
 
 Prereqs:
-- Longhorn installed + `longhorn-cnpg` StorageClass applied
+- Longhorn + `longhorn-cnpg` StorageClass
   (`gitops/infrastructure/config/longhorn-cnpg/storageclass.yaml`).
-- CloudNativePG operator installed
+- CloudNativePG operator
   (`gitops/infrastructure/controllers/cloudnative-pg/`).
-- The bootstrap secret created out-of-band (see the manifest header).
