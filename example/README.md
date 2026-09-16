@@ -54,3 +54,37 @@ then
 9. Make all your `kubectl` commands work with your cluster for your terminal
    session by running `export KUBECONFIG="config.yaml"`. If you want to add the
    context more perminantly globaly, [refer to the document on managing Kubernetes configs](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/#create-a-second-configuration-file).
+
+## Remote state (Backblaze B2)
+
+`main.tf` is configured with an S3 backend pointed at Backblaze B2 (S3-compatible).
+The non-sensitive settings (bucket, key, region, endpoint) are committed in the
+`backend "s3"` block; the **credentials are not** — supply them at init time.
+
+1. Set the bucket/region/endpoint in the `backend "s3"` block of `main.tf` to
+   match your B2 bucket (e.g. `us-west-004` -> `https://s3.us-west-004.backblazeb2.com`).
+2. Create a B2 Application Key scoped to that bucket, then copy the template:
+   ```bash
+   cp backend.hcl.example backend.hcl   # Windows: copy backend.hcl.example backend.hcl
+   ```
+   and fill in `access_key` / `secret_key`. `backend.hcl` is gitignored.
+3. **First-time migration** from the existing local `terraform.tfstate` to B2:
+   ```bash
+   terraform init -migrate-state -backend-config=backend.hcl
+   ```
+   This uploads the local state to the bucket and removes the local state file.
+   Subsequent runs just use the remote state:
+   ```bash
+   terraform init -backend-config=backend.hcl
+   ```
+4. Alternatively, skip `backend.hcl` and use env vars:
+   `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
+
+Notes:
+- `skip_credentials_validation`, `skip_metadata_api_check`, `skip_region_validation`
+  and `force_path_style` are required because B2 is not real AWS.
+- Keep the B2 state bucket **versioned** (B2 keeps file versions) so you can recover
+  a prior state if a bad apply overwrites it.
+- To go back to local state later: `terraform init -migrate-state=false` is not a
+  thing — instead `terraform state pull > terraform.tfstate` then remove the backend
+  block and re-init with `-reconfigure`.

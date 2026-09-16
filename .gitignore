@@ -2,6 +2,10 @@
 secrets.auto.tfvars
 **/secrets.auto.tfvars
 
+# Backend credentials (Backblaze B2 / S3) - never commit. backend.hcl.example is the template.
+backend.hcl
+**/backend.hcl
+
 # Local .terraform directories
 **/.terraform/*
 

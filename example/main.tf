@@ -5,6 +5,32 @@ terraform {
       version = "~> 0.113.0"
     }
   }
+
+  # Remote state on Backblaze B2 (S3-compatible). Backend blocks CANNOT use
+  # variables/locals, so the non-sensitive settings live here and the
+  # credentials are supplied at init time via a gitignored backend.hcl:
+  #   terraform init -backend-config=backend.hcl
+  # (see example/README.md for the local->remote migration step).
+  backend "s3" {
+    # B2 bucket name (must be globally unique on B2).
+    bucket = "YOUR-B2-BUCKET"
+    # Path/key of the state file inside the bucket.
+    key = "opti-k3s/terraform.tfstate"
+    # B2 region of the bucket, e.g. us-west-004. Must match the endpoint below.
+    region = "us-west-004"
+    # B2 S3-compatible endpoint for that region.
+    endpoint = "https://s3.us-west-004.backblazeb2.com"
+
+    # B2 quirks: it is not real AWS, so skip the AWS-specific checks.
+    skip_credentials_validation = true
+    skip_metadata_api_check     = true
+    skip_region_validation      = true
+    force_path_style            = true
+
+    # access_key / secret_key are NOT set here (no variables in backend blocks).
+    # Provide them via backend.hcl (gitignored) or env vars:
+    #   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+  }
 }
 
 variable "pm_token_id" {
