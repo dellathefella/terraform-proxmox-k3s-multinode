@@ -1,10 +1,9 @@
-# MetalLB L2 address pool. CONFIRM 10.0.5.80-99 is free on your LAN before use.
 apiVersion: metallb.io/v1beta1
 kind: IPAddressPool
 metadata:
   name: default-pool
   namespace: metallb-system
 spec:
+  autoAssign: true
   addresses:
     - 10.0.5.80-10.0.5.99
-  autoAssign: true

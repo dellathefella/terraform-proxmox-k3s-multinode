@@ -249,6 +249,16 @@ module "k3s" {
   ]
 }
 
+# Templates the MetalLB GitOps manifests from variables (pure file generation, no
+# cluster interaction). Re-run `terraform apply` after changing the pool to
+# regenerate gitops/infrastructure/**, which Flux then syncs.
+module "metallb" {
+  source         = "../metallb"
+  pool_addresses = ["10.0.5.80-10.0.5.99"]
+  interfaces     = ["eth0"]
+  output_dir     = "${path.root}/../gitops/infrastructure"
+}
+
 output "kubeconfig_path" {
   value = module.k3s.k3s_kubeconfig_path
 }
