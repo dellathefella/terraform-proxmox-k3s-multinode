@@ -13,18 +13,19 @@ terraform {
   # (see example/README.md for the local->remote migration step).
   backend "s3" {
     # B2 bucket name (must be globally unique on B2).
-    bucket = "YOUR-B2-BUCKET"
+    bucket = "dellathefella-terraform-state"
     # Path/key of the state file inside the bucket.
     key = "opti-k3s/terraform.tfstate"
-    # B2 region of the bucket, e.g. us-west-004. Must match the endpoint below.
-    region = "us-west-004"
+    # B2 region of the bucket. Must match the endpoint below.
+    region = "us-east-005"
     # B2 S3-compatible endpoint for that region.
-    endpoint = "https://s3.us-west-004.backblazeb2.com"
+    endpoint = "https://s3.us-east-005.backblazeb2.com"
 
     # B2 quirks: it is not real AWS, so skip the AWS-specific checks.
     skip_credentials_validation = true
     skip_metadata_api_check     = true
     skip_region_validation      = true
+    skip_requesting_account_id  = true
     force_path_style            = true
 
     # access_key / secret_key are NOT set here (no variables in backend blocks).
