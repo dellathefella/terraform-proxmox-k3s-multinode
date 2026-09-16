@@ -7,121 +7,111 @@ terraform {
   }
 }
 
-provider "proxmox" {
-  # make sure to export PM_API_TOKEN_ID and PM_API_TOKEN_SECRET
-  endpoint = "https://10.10.1.100:8006/"
-  insecure = true
+variable "pm_token_id" {
+  description = "Proxmox API token ID (e.g. root@pam!k3s-deployer)."
+  type        = string
 }
 
-# Topology for 9 identical micro PCs (i5-7500T = 4 cores / 4 threads, 16 GB RAM).
+variable "pm_token_secret" {
+  description = "Proxmox API token secret."
+  type        = string
+  sensitive   = true
+}
+
+provider "proxmox" {
+  endpoint  = "https://10.0.5.1:8006/"
+  api_token = "${var.pm_token_id}=${var.pm_token_secret}"
+  insecure  = true
+}
+
+# Topology for 9 identical nodes (4 cores / 16 GB each), one VM per node.
 #
-# The masters are UNSCHEDULED-TAINT-OFF (master_taints = []), so they run regular
-# workloads in addition to the control plane - no idle cores/RAM on those boxes.
+#   opti0 : master0 (4c/8G, control-plane only)
+#   opti1 : master1 (4c/8G, control-plane only)
+#   opti2 : master2 (4c/8G, control-plane only)
+#   opti3 : worker pool0 (4c/13G)
+#   opti4 : worker pool1 (4c/13G)
+#   opti5 : worker pool2 (4c/13G)
+#   opti6 : worker pool3 (4c/13G)
+#   opti7 : worker pool4 (4c/13G)
+#   opti8 : worker pool5 (4c/13G)
 #
-#   pve-prd0 : support (1c/1G) + master0 (3c/12G, schedulable)
-#   pve-prd1 : master1 (4c/12G, schedulable)
-#   pve-prd2 : master2 (4c/12G, schedulable)
-#   pve-prd3 : worker pool0 (4c/12G)
-#   pve-prd4 : worker pool1 (4c/12G)
-#   pve-prd5 : worker pool2 (4c/12G)
-#   pve-prd6 : worker pool3 (4c/12G)
-#   pve-prd7 : worker pool4 (4c/12G)
-#   pve-prd8 : worker pool5 (4c/12G)
+# 3 masters give an HA embedded-etcd control plane. Masters are tainted
+# CriticalAddonsOnly:NoExecute so only critical system pods schedule there.
+# The support node is disabled (embedded etcd makes its MariaDB role moot).
+# Each VM leaves ~1.5-3 GB of host RAM for Proxmox itself.
 #
-# 3 masters give an HA embedded-etcd control plane. master0 is 3c (not 4c) so it
-# fits alongside the 1c support VM on the 4-core pve-prd0 without CPU overcommit.
-# Each VM leaves a few GB of host RAM for Proxmox itself (cap ZFS ARC if you use
-# ZFS, e.g. zfs_arc_max=2147483648 so the ARC doesn't eat the VM's 12 GB).
-#
-# NOTE: because workloads now share the master boxes, give them resource
-# requests/limits so they can't starve etcd / the API server.
-#
-# NOTE: storage_id / disk_size below are placeholders - set them to your actual
-# datastores. etcd (masters) wants SSD; workers can use whatever you have.
+# IP plan (LAN is 10.0.0.0/8, gateway 10.0.0.1, DHCP 10.0.0.86-10.0.4.254).
+# All node IPs are in 10.0.5.x, outside DHCP and clear of the PVE hosts
+# (10.0.5.1-9). The /8 prefix from lan_subnet is applied to every node.
 module "k3s" {
   source                      = "../"
-  authorized_keys_file        = "~/.ssh/id_rsa.pub"
-  authorized_private_key_file = "~/.ssh/id_rsa"
+  authorized_keys_file        = "C:/Users/jaked/.ssh/id_ed25519.pub"
+  authorized_private_key_file = "C:/Users/jaked/.ssh/id_ed25519"
+  ssh_binary                  = "C:/Windows/System32/OpenSSH/ssh.exe"
+  scp_binary                  = "C:/Windows/System32/OpenSSH/scp.exe"
+  ssh_null_device             = "NUL"
+  kubeconfig_interpreter      = ["powershell", "-NoProfile", "-Command"]
 
-  # Numeric VM ID of the debian-13-cloudinit-template (see README template creation)
-  template_vm_id = 8003
-
-  # ...or let the module build the template itself (mutually exclusive with template_vm_id):
-  # template_image = {
-  #   node_name    = "pve-prd0"
-  #   datastore_id = "local"
-  #   url          = "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
-  #   file_name    = "debian-13-genericcloud-amd64.qcow2"
-  #   disk_size    = 16
-  # }
-
-  # support = 900+1, masters = 900+2.., workers after; auto-built template takes 900
-  vm_id_start     = 900
-  network_gateway = "10.10.1.1"
-  lan_subnet      = "10.10.1.1/16"
-  cluster_name    = "jdella-com-prd"
-
-  # DNS servers handed to nodes via cloud-init (nodes use static IPs)
-  dns_servers = ["10.10.1.1", "1.1.1.1"]
-
-  # All 9 hosts are the same i5-7500T, so host CPU passthrough is safe and fastest.
-  cpu_type = "host"
-
-  # Register masters as Proxmox HA resources (group must already exist)
-  # ha_group = "k3s-ha"
-
-  # Guard created VMs against accidental GUI changes
-  protection = false
-
-  # Floating API VIP (keepalived) across the masters. Free address in the
-  # control-plane block (support=.0, masters=.1-.3, VIP=.7).
-  api_vip        = "10.10.2.7"
-  vrrp_router_id = 51
-  vrrp_auth_pass = "k3svip1" # max 8 chars (VRRPv2)
-
-  # Embedded etcd: HA control plane, no MariaDB single point of failure.
-  # The support node becomes a near-idle placeholder.
-  cluster_enable_embedded_etcd = true
-
-  # Optionally pin the k3s version (empty = current stable channel)
-  # k3s_version = "v1.37.0+k3s1"
-
-  # Support node (co-located on pve-prd0 with master0; minimal with embedded etcd)
-  support_node_settings = {
-    target_node    = "pve-prd0"
-    cores          = 1
-    sockets        = 1
-    memory         = 1024
-    storage_id     = "local-lvm"
-    disk_size      = "16G"
-    user           = "support"
-    network_tag    = -1
-    db_name        = "k3s"
-    db_user        = "k3s"
-    network_bridge = "vmbr0"
+  # Module builds the Debian 13 cloud-init template itself (no manual steps).
+  # The downloaded qcow2 lands on "local" (has the "import" content type); the
+  # template disk + cloud-init are created on "local-lvm" (has "images").
+  template_image = {
+    node_name           = "opti0"
+    datastore_id        = "local-lvm"
+    import_datastore_id = "local"
+    url                 = "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
+    file_name           = "debian-13-genericcloud-amd64.qcow2"
+    disk_size           = 16
+    user                = "debian"
   }
 
-  # Disable default traefik and servicelb installs (use MetalLB + Traefik 2)
+  # template = 900, support = 901 (disabled), masters = 902-904, workers = 905-910
+  vm_id_start     = 900
+  network_gateway = "10.0.0.1"
+  lan_subnet      = "10.0.0.1/8"
+  cluster_name    = "opti-k3s"
+
+  dns_servers = ["10.0.0.1", "1.1.1.1"]
+
+  # All 9 hosts are the same CPU, so host passthrough is safe and fastest.
+  cpu_type = "host"
+
+  # Floating API VIP (keepalived) across the masters. Free address in the
+  # control-plane block (support=.16, masters=.17-.19, VIP=.23).
+  api_vip        = "10.0.5.23"
+  vrrp_router_id = 51
+  vrrp_auth_pass = "optivip1" # max 8 chars (VRRPv2)
+
+  # Guest agent left disabled at create time (module installs it during
+  # provisioning; flip to true on a later apply if desired).
+  vm_agent_enabled = false
+
+  # Embedded etcd: HA control plane, no MariaDB single point of failure.
+  cluster_enable_embedded_etcd = true
+
+  # Support node has no role under embedded etcd -> don't create it.
+  support_node_enabled = false
+
+  # Disable default traefik and servicelb installs (use MetalLB + Traefik 2).
   k3s_disable_components = [
     "traefik",
     "servicelb"
   ]
 
-  # 10.10.2.0/29 -> support .0, masters .1-.3, VIP .7
-  control_plane_subnet = "10.10.2.0/29"
+  # 10.0.5.16/29 -> support .16 (unused), masters .17-.19, VIP .23
+  control_plane_subnet = "10.0.5.16/29"
 
-  # Let regular workloads schedule on the masters (better hardware use).
-  # Set back to ["CriticalAddonsOnly=true:NoExecute"] to reserve them.
-  master_taints = []
+  # Reserve the control plane: only critical system pods schedule on masters.
+  master_taints = ["CriticalAddonsOnly=true:NoExecute"]
 
-  # Control plane: 3 masters on pve-prd0/1/2, schedulable. master0 is 3c so it
-  # fits with the 1c support VM on the 4-core pve-prd0.
+  # Control plane: 3 masters on opti0/1/2, control-plane only.
   master_nodes = [
     {
-      target_node    = "pve-prd0"
-      cores          = 3
+      target_node    = "opti0"
+      cores          = 4
       sockets        = 1
-      memory         = 12288
+      memory         = 8192
       storage_id     = "local-lvm"
       disk_size      = "48G"
       user           = "k3s"
@@ -129,10 +119,10 @@ module "k3s" {
       network_tag    = -1
     },
     {
-      target_node    = "pve-prd1"
+      target_node    = "opti1"
       cores          = 4
       sockets        = 1
-      memory         = 12288
+      memory         = 8192
       storage_id     = "local-lvm"
       disk_size      = "48G"
       user           = "k3s"
@@ -140,10 +130,10 @@ module "k3s" {
       network_tag    = -1
     },
     {
-      target_node    = "pve-prd2"
+      target_node    = "opti2"
       cores          = 4
       sockets        = 1
-      memory         = 12288
+      memory         = 8192
       storage_id     = "local-lvm"
       disk_size      = "48G"
       user           = "k3s"
@@ -152,19 +142,18 @@ module "k3s" {
     }
   ]
 
-  # Workers: one per remaining host (pve-prd3..8), 4 cores / 12 GB each.
-  # Each pool is a single node on its own /29 allocation block.
+  # Workers: one per remaining host (opti3..8), 4 cores / 13 GB each.
   node_pools = [
     {
-      subnet      = "10.10.2.8/29" # worker .9
-      target_node = "pve-prd3"
+      subnet      = "10.0.5.24/29" # worker .25
+      target_node = "opti3"
       size        = 1
       node_pool_settings = {
         name           = "pool0"
         taints         = []
         cores          = 4
         sockets        = 1
-        memory         = 12288
+        memory         = 13312
         storage_id     = "local-lvm"
         disk_size      = "128G"
         user           = "k3s"
@@ -173,15 +162,15 @@ module "k3s" {
       }
     },
     {
-      subnet      = "10.10.2.16/29" # worker .17
-      target_node = "pve-prd4"
+      subnet      = "10.0.5.32/29" # worker .33
+      target_node = "opti4"
       size        = 1
       node_pool_settings = {
         name           = "pool1"
         taints         = []
         cores          = 4
         sockets        = 1
-        memory         = 12288
+        memory         = 13312
         storage_id     = "local-lvm"
         disk_size      = "128G"
         user           = "k3s"
@@ -190,15 +179,15 @@ module "k3s" {
       }
     },
     {
-      subnet      = "10.10.2.24/29" # worker .25
-      target_node = "pve-prd5"
+      subnet      = "10.0.5.40/29" # worker .41
+      target_node = "opti5"
       size        = 1
       node_pool_settings = {
         name           = "pool2"
         taints         = []
         cores          = 4
         sockets        = 1
-        memory         = 12288
+        memory         = 13312
         storage_id     = "local-lvm"
         disk_size      = "128G"
         user           = "k3s"
@@ -207,15 +196,15 @@ module "k3s" {
       }
     },
     {
-      subnet      = "10.10.2.32/29" # worker .33
-      target_node = "pve-prd6"
+      subnet      = "10.0.5.48/29" # worker .49
+      target_node = "opti6"
       size        = 1
       node_pool_settings = {
         name           = "pool3"
         taints         = []
         cores          = 4
         sockets        = 1
-        memory         = 12288
+        memory         = 13312
         storage_id     = "local-lvm"
         disk_size      = "128G"
         user           = "k3s"
@@ -224,15 +213,15 @@ module "k3s" {
       }
     },
     {
-      subnet      = "10.10.2.40/29" # worker .41
-      target_node = "pve-prd7"
+      subnet      = "10.0.5.56/29" # worker .57
+      target_node = "opti7"
       size        = 1
       node_pool_settings = {
         name           = "pool4"
         taints         = []
         cores          = 4
         sockets        = 1
-        memory         = 12288
+        memory         = 13312
         storage_id     = "local-lvm"
         disk_size      = "128G"
         user           = "k3s"
@@ -241,15 +230,15 @@ module "k3s" {
       }
     },
     {
-      subnet      = "10.10.2.48/29" # worker .49
-      target_node = "pve-prd8"
+      subnet      = "10.0.5.64/29" # worker .65
+      target_node = "opti8"
       size        = 1
       node_pool_settings = {
         name           = "pool5"
         taints         = []
         cores          = 4
         sockets        = 1
-        memory         = 12288
+        memory         = 13312
         storage_id     = "local-lvm"
         disk_size      = "128G"
         user           = "k3s"
@@ -261,7 +250,6 @@ module "k3s" {
 }
 
 output "kubeconfig_path" {
-  # Update module name. Here we are using 'k3s'
   value = module.k3s.k3s_kubeconfig_path
 }
 

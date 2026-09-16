@@ -3,7 +3,7 @@ locals {
   # vm_id_start + 2 + masters + offset + index is unique across all workers.
   worker_pool_offsets = [
     for pi in range(length(var.node_pools)) :
-    sum([for pool in slice(var.node_pools, 0, pi) : pool.size])
+    try(sum([for pool in slice(var.node_pools, 0, pi) : pool.size]), 0)
   ]
 
   listed_worker_nodes = flatten([
@@ -38,7 +38,7 @@ resource "proxmox_virtual_environment_vm" "k3s-worker" {
   vm_id     = each.value.vm_id
 
   clone {
-    vm_id = local.effective_template_vm_id
+    vm_id = local.effective_template_vm_id[each.value.target_node]
   }
 
   pool_id    = var.proxmox_resource_pool != "" ? var.proxmox_resource_pool : null

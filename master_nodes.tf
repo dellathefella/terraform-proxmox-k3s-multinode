@@ -33,7 +33,7 @@ resource "proxmox_virtual_environment_vm" "k3s-master" {
   vm_id     = each.value.vm_id
 
   clone {
-    vm_id = local.effective_template_vm_id
+    vm_id = local.effective_template_vm_id[each.value.target_node]
   }
 
   pool_id    = var.proxmox_resource_pool != "" ? var.proxmox_resource_pool : null
@@ -192,9 +192,17 @@ resource "null_resource" "kubeconfig" {
     proxmox_virtual_environment_vm.k3s-master,
   ]
 
+  # Platform-agnostic kubeconfig fetch. The sed rewrite and its `>` redirect run
+  # on the REMOTE (Unix) node inside DOUBLE quotes (so the local shell does not
+  # interpret the inner `>`/`&&`), then scp copies the file down. The two
+  # commands are chained with `;` (works in both PowerShell and /bin/sh; note
+  # PowerShell 5.1 lacks `&&`). The interpreter is set via kubeconfig_interpreter
+  # because cmd.exe cannot nest double quotes. Only the null device and scp
+  # binary vary per platform (ssh_null_device / scp_binary).
   provisioner "local-exec" {
-    command = <<-EOT
-      ${var.ssh_binary} ${var.ssh_agent_auth ? "" : "-i ${var.authorized_private_key_file}"} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${local.listed_master_nodes[0].user}@${local.listed_master_nodes[0].ip} "sudo sed 's|https://127.0.0.1:6443|https://${local.api_endpoint}:6443|g' /etc/rancher/k3s/k3s.yaml" > "${abspath(var.kubeconfig_output_path)}"
+    interpreter = var.kubeconfig_interpreter
+    command     = <<-EOT
+      ${var.ssh_binary} ${var.ssh_agent_auth ? "" : "-i ${var.authorized_private_key_file}"} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${var.ssh_null_device} ${local.listed_master_nodes[0].user}@${local.listed_master_nodes[0].ip} "sudo sed 's|https://127.0.0.1:6443|https://${local.api_endpoint}:6443|g' /etc/rancher/k3s/k3s.yaml > /tmp/kubeconfig.fetch && sudo chmod 644 /tmp/kubeconfig.fetch" ; ${var.scp_binary} ${var.ssh_agent_auth ? "" : "-i ${var.authorized_private_key_file}"} -o StrictHostKeyChecking=no -o UserKnownHostsFile=${var.ssh_null_device} ${local.listed_master_nodes[0].user}@${local.listed_master_nodes[0].ip}:/tmp/kubeconfig.fetch "${abspath(var.kubeconfig_output_path)}"
     EOT
   }
 }
@@ -222,7 +230,7 @@ resource "proxmox_virtual_environment_firewall_rules" "k3s_master_vrrp" {
 
   rule {
     comment = "Allow VRRP (keepalived) for the floating K3s API VIP"
-    type    = "IN"
+    type    = "in"
     action  = "ACCEPT"
     proto   = "112"
     source  = var.control_plane_subnet

@@ -47,7 +47,7 @@ resource "proxmox_virtual_environment_vm" "k3s-support" {
   vm_id     = var.vm_id_start + 1
 
   clone {
-    vm_id = local.effective_template_vm_id
+    vm_id = local.effective_template_vm_id[local.support_node_settings.target_node]
   }
 
   pool_id    = var.proxmox_resource_pool != "" ? var.proxmox_resource_pool : null
@@ -197,7 +197,7 @@ resource "null_resource" "k3s_keepalived_config" {
   provisioner "file" {
     destination = "/tmp/keepalived.conf"
     content = templatefile("${path.module}/config/keepalived.conf.tftpl", {
-      interface = each.value.network_bridge
+      interface = var.keepalived_interface
       router_id = var.vrrp_router_id
       priority  = 100 + (length(var.master_nodes) - 1 - each.value.i)
       vip       = var.api_vip
@@ -227,7 +227,7 @@ resource "proxmox_virtual_environment_firewall_rules" "k3s_support_mariadb" {
 
   rule {
     comment = "Allow k3s control plane to reach the MariaDB datastore"
-    type    = "IN"
+    type    = "in"
     action  = "ACCEPT"
     proto   = "tcp"
     dport   = "3306"

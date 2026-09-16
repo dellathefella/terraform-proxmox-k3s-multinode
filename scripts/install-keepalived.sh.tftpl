@@ -10,6 +10,15 @@ export NO_PROXY="${join(",", no_proxy)}"
 export no_proxy="${join(",", no_proxy)}"
 
 %{ if lb_enabled ~}
+# Stop Debian's first-boot apt activity so it doesn't hold the apt/dpkg lock.
+sudo systemctl stop unattended-upgrades apt-daily.timer apt-daily-upgrade.timer apt-daily.service apt-daily-upgrade.service 2>/dev/null || true
+sudo systemctl mask unattended-upgrades apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+for _lockwait in $(seq 1 90); do
+    if ! sudo fuser /var/lib/apt/lists/lock /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock >/dev/null 2>&1; then
+        break
+    fi
+    sleep 5
+done
 [ -f /etc/needrestart/needrestart.conf ] && sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf || true
 DEBIAN_FRONTEND=noninteractive sudo -E apt-get update -y &&
 DEBIAN_FRONTEND=noninteractive sudo -E apt-get install -y keepalived &&

@@ -1,3 +1,7 @@
+# Local secrets (Proxmox API token, etc.) - never commit
+secrets.auto.tfvars
+**/secrets.auto.tfvars
+
 # Local .terraform directories
 **/.terraform/*
 

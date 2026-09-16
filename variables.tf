@@ -94,6 +94,7 @@ variable "template_image" {
     disk_size      = number,
     user           = optional(string, "debian"),
     network_bridge = optional(string, "vmbr0"),
+    import_datastore_id = optional(string),
   })
   default     = null
   description = <<EOF
@@ -113,6 +114,17 @@ auto-built template (if template_image is used) = vm_id_start,
 support node = vm_id_start + 1,
 master nodes = vm_id_start + 2 .. vm_id_start + 1 + number_of_masters,
 worker nodes = the IDs after that, in pool order.
+EOF
+}
+
+variable "template_vm_id_base" {
+  type        = number
+  default     = 8000
+  description = <<EOF
+Starting VM ID for the auto-built per-node templates (template_image mode).
+Each unique target node gets a template at template_vm_id_base + index (sorted),
+kept in a range separate from vm_id_start so template IDs never collide with
+the node VMs. Ignored when template_vm_id is set (single shared template).
 EOF
 }
 
@@ -284,6 +296,29 @@ variable "ssh_binary" {
   default     = "/usr/bin/ssh"
 }
 
+variable "ssh_null_device" {
+  description = "Null device for the kubeconfig fetch's UserKnownHostsFile. Use NUL on Windows, /dev/null on Unix."
+  type        = string
+  default     = "/dev/null"
+}
+
+variable "scp_binary" {
+  description = "Path to the scp binary used to copy the kubeconfig down from the first master at apply time."
+  type        = string
+  default     = "scp"
+}
+
+variable "kubeconfig_interpreter" {
+  description = <<-EOF
+  Interpreter for the kubeconfig-fetch local-exec. The command chains ssh and scp
+  with `;` and double-quotes the remote command, which works in both PowerShell
+  and /bin/sh. Use ["/bin/sh", "-c"] on Unix or ["powershell", "-NoProfile",
+  "-Command"] on Windows. Do NOT use cmd.exe - it cannot nest double quotes.
+  EOF
+  type        = list(string)
+  default     = ["/bin/sh", "-c"]
+}
+
 variable "vm_agent_enabled" {
   description = <<-EOF
   Tell Proxmox that qemu-guest-agent is running in the guests. The module installs
@@ -360,6 +395,12 @@ variable "vrrp_router_id" {
     condition     = var.vrrp_router_id >= 1 && var.vrrp_router_id <= 255
     error_message = "vrrp_router_id must be between 1 and 255."
   }
+}
+
+variable "keepalived_interface" {
+  description = "Guest-side network interface name inside the master VMs that keepalived binds the VIP to. This is the VM's own NIC (e.g. eth0/ens18), NOT the Proxmox host bridge (vmbr0)."
+  type        = string
+  default     = "eth0"
 }
 
 variable "vrrp_auth_pass" {
