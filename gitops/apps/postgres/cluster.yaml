@@ -1,0 +1,30 @@
+# Sample CloudNativePG cluster using the longhorn-cnpg StorageClass.
+#
+# NOTE: the bootstrap secret (pg-sample-app) is NOT committed here. Create it
+# out-of-band or via SOPS/Sealed Secrets:
+#   kubectl -n postgres create secret generic pg-sample-app \
+#     --from-literal=username=appuser --from-literal=password=<generated>
+#
+# 2 instances = 1 primary + 1 streaming replica. Each instance's data volume is
+# single-replica (longhorn-cnpg); HA comes from CNPG's streaming replication,
+# not Longhorn replication.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pg-sample
+  namespace: postgres
+spec:
+  instances: 2
+  storage:
+    storageClass: longhorn-cnpg
+    size: 1Gi
+  bootstrap:
+    initdb:
+      database: appdb
+      owner: appuser
+      secret:
+        name: pg-sample-app
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
