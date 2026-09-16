@@ -123,7 +123,25 @@ ssh k3s@10.0.5.17 'sudo k3s kubectl get nodes -o wide'
 # expect: 3 control-plane/etcd masters + 6 workers, all Ready
 ```
 
-## 7. Gotchas / rules of thumb
+## 7. GitOps scaffolding (Flux + MetalLB)
+
+A GitOps tree lives in `gitops/` (see `gitops/README.md` for full bootstrap
+steps). Summary:
+
+- **Flux** is the sync engine. `flux bootstrap git --path=clusters/opti-k3s`
+  installs the controllers and wires the `GitRepository` → root `Kustomization`.
+- **Layered Kustomizations** (in `clusters/opti-k3s/flux-system/`):
+  `infra-controllers` → `infra-config` (dependsOn) → `apps` (dependsOn), giving
+  ordered, pruned reconciliation.
+- **MetalLB** (controller in `infrastructure/controllers/metallb`, config in
+  `infrastructure/config/metallb`) provides `LoadBalancer` IPs because k3s's
+  `servicelb` is disabled. L2 mode, pool `10.0.5.80-10.0.5.99` (free range —
+  verify before use).
+- The controllers/config split exists because MetalLB's CRDs must be installed
+  (by the HelmRelease) before the `IPAddressPool`/`L2Advertisement` are applied.
+- All `gitops/**/*.yaml` are forced to LF via `.gitattributes`.
+
+## 8. Gotchas / rules of thumb
 
 - **LF only** for any script rendered onto a Linux guest.
 - **Don't trust `curl -f`** for k3s healthz (it 401s); probe reachability instead.

@@ -1,0 +1,9 @@
+# Plain kustomize: applications. Add your app manifests / HelmReleases here.
+# Example:
+#   resources:
+#     - ./namespaces
+#     - ./ingress
+#     - ./workloads
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []
