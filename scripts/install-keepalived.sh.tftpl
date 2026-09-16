@@ -9,6 +9,11 @@ export https_proxy="${http_proxy}"
 export NO_PROXY="${join(",", no_proxy)}"
 export no_proxy="${join(",", no_proxy)}"
 
+# Ensure a sane PATH: the SSH non-login shell may not include /usr/sbin, which is
+# where keepalived (and other admin binaries) live. Without this, `command -v`
+# and even `apt-get`/`systemctl` lookups can fail spuriously.
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
 %{ if lb_enabled ~}
 # Stop Debian's first-boot apt activity so it doesn't hold the apt/dpkg lock.
 sudo systemctl stop unattended-upgrades apt-daily.timer apt-daily-upgrade.timer apt-daily.service apt-daily-upgrade.service 2>/dev/null || true

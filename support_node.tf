@@ -207,7 +207,8 @@ resource "null_resource" "k3s_keepalived_config" {
 
   provisioner "remote-exec" {
     inline = [
-      "command -v keepalived >/dev/null 2>&1 || { echo 'ERROR: keepalived is not installed on this node; refusing to push config' >&2; exit 1; }",
+      "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "dpkg -s keepalived >/dev/null 2>&1 || { echo 'ERROR: keepalived is not installed on this node; refusing to push config' >&2; exit 1; }",
       "sudo mkdir -p /etc/keepalived",
       "sudo mv /tmp/keepalived.conf /etc/keepalived/keepalived.conf",
       "sudo systemctl daemon-reload",
