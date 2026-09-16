@@ -15,6 +15,12 @@ variable "ssh_agent_auth" {
   default     = false
 }
 
+variable "longhorn_enabled" {
+  description = "Install open-iscsi on every node (Longhorn CSI prerequisite: iscsiadm + iscsid + iscsi_tcp). Set true when deploying Longhorn; the install script is a no-op when false."
+  type        = bool
+  default     = false
+}
+
 variable "network_gateway" {
   description = "IP address of the network gateway."
   type        = string

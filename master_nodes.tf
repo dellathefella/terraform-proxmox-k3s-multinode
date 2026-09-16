@@ -140,6 +140,25 @@ resource "proxmox_virtual_environment_vm" "k3s-master" {
     ]
   }
 
+  # Install open-iscsi (Longhorn prerequisite) before k3s. No-op when
+  # longhorn_enabled = false.
+  provisioner "file" {
+    destination = "/tmp/install-iscsi.sh"
+    content = templatefile("${path.module}/scripts/install-iscsi.sh.tftpl", {
+      iscsi_enabled = var.longhorn_enabled
+      http_proxy    = var.http_proxy
+      no_proxy      = local.effective_no_proxy
+    })
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod u+x /tmp/install-iscsi.sh",
+      "sh /tmp/install-iscsi.sh",
+      "rm -f /tmp/install-iscsi.sh",
+    ]
+  }
+
   provisioner "remote-exec" {
     # Any additional node past the first one sleeps for extra time to ensure etcd can be bootstrapped in time.
     inline = ["sleep ${(each.value.i + 1) * 10}",

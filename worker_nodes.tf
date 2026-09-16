@@ -135,6 +135,25 @@ resource "proxmox_virtual_environment_vm" "k3s-worker" {
     agent       = var.ssh_agent_auth
   }
 
+  # Install open-iscsi (Longhorn prerequisite) before k3s. No-op when
+  # longhorn_enabled = false.
+  provisioner "file" {
+    destination = "/tmp/install-iscsi.sh"
+    content = templatefile("${path.module}/scripts/install-iscsi.sh.tftpl", {
+      iscsi_enabled = var.longhorn_enabled
+      http_proxy    = var.http_proxy
+      no_proxy      = local.effective_no_proxy
+    })
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod u+x /tmp/install-iscsi.sh",
+      "sh /tmp/install-iscsi.sh",
+      "rm -f /tmp/install-iscsi.sh",
+    ]
+  }
+
   provisioner "remote-exec" {
     inline = ["sleep 5",
       templatefile("${path.module}/scripts/install-k3s.sh.tftpl", {

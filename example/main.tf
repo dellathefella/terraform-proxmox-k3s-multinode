@@ -49,9 +49,12 @@ module "k3s" {
   authorized_keys_file        = "C:/Users/jaked/.ssh/id_ed25519.pub"
   authorized_private_key_file = "C:/Users/jaked/.ssh/id_ed25519"
   ssh_binary                  = "C:/Windows/System32/OpenSSH/ssh.exe"
-  scp_binary                  = "C:/Windows/System32/OpenSSH/scp.exe"
-  ssh_null_device             = "NUL"
-  kubeconfig_interpreter      = ["powershell", "-NoProfile", "-Command"]
+
+  # Install open-iscsi on all nodes so Longhorn can attach volumes.
+  longhorn_enabled       = true
+  scp_binary             = "C:/Windows/System32/OpenSSH/scp.exe"
+  ssh_null_device        = "NUL"
+  kubeconfig_interpreter = ["powershell", "-NoProfile", "-Command"]
 
   # Module builds the Debian 13 cloud-init template itself (no manual steps).
   # The downloaded qcow2 lands on "local" (has the "import" content type); the
