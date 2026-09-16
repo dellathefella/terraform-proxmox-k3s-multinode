@@ -93,9 +93,8 @@ module "k3s" {
   # Support node has no role under embedded etcd -> don't create it.
   support_node_enabled = false
 
-  # Disable default traefik and servicelb installs (use MetalLB + Traefik 2).
+  # Disable only servicelb (MetalLB owns LoadBalancer IPs); keep Traefik enabled.
   k3s_disable_components = [
-    "traefik",
     "servicelb"
   ]
 
