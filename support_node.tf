@@ -207,8 +207,12 @@ resource "null_resource" "k3s_keepalived_config" {
 
   provisioner "remote-exec" {
     inline = [
+      "command -v keepalived >/dev/null 2>&1 || { echo 'ERROR: keepalived is not installed on this node; refusing to push config' >&2; exit 1; }",
+      "sudo mkdir -p /etc/keepalived",
       "sudo mv /tmp/keepalived.conf /etc/keepalived/keepalived.conf",
+      "sudo systemctl daemon-reload",
       "sudo systemctl restart keepalived.service",
+      "sudo systemctl is-active --quiet keepalived.service || { echo 'ERROR: keepalived failed to start after config push' >&2; sudo journalctl -u keepalived --no-pager -n 20 >&2; exit 1; }",
     ]
   }
 
