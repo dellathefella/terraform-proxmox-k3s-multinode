@@ -46,7 +46,7 @@ variable "pm_token_secret" {
 }
 
 provider "proxmox" {
-  endpoint  = "https://10.0.5.1:8006/"
+  endpoint  = "https://10.0.5.4:8006/"
   api_token = "${var.pm_token_id}=${var.pm_token_secret}"
   insecure  = true
 }
@@ -54,15 +54,14 @@ provider "proxmox" {
 # Topology for 9 identical nodes (4 cores / 16 GB each), one VM per node.
 #
 #   opti0 : master0 (4c/8G, control-plane only)
-#   opti1 : master1 (4c/8G, control-plane only)
-#   opti2 : master2 (4c/8G, control-plane only)
-#   opti3 : worker pool0 (4c/13G)
-#   opti4 : worker pool1 (4c/13G)
+#   opti2 : master1 (4c/8G, control-plane only)
+#   opti3 : master2 (4c/8G, control-plane only)
 #   opti5 : worker pool2 (4c/13G)
 #   opti6 : worker pool3 (4c/13G)
 #   opti7 : worker pool4 (4c/13G)
 #   opti8 : worker pool5 (4c/13G)
 #
+# opti1 and opti4 are dead hosts, dropped from the topology.
 # 3 masters give an HA embedded-etcd control plane. Masters are tainted
 # CriticalAddonsOnly:NoExecute so only critical system pods schedule there.
 # The support node is disabled (embedded etcd makes its MariaDB role moot).
@@ -73,15 +72,15 @@ provider "proxmox" {
 # (10.0.5.1-9). The /8 prefix from lan_subnet is applied to every node.
 module "k3s" {
   source                      = "../"
-  authorized_keys_file        = "C:/Users/jaked/.ssh/id_ed25519.pub"
-  authorized_private_key_file = "C:/Users/jaked/.ssh/id_ed25519"
-  ssh_binary                  = "C:/Windows/System32/OpenSSH/ssh.exe"
+  authorized_keys_file        = "~/.ssh/id_ed25519.pub"
+  authorized_private_key_file = "~/.ssh/id_ed25519"
+  ssh_binary                  = "/usr/bin/ssh"
 
   # Install open-iscsi on all nodes so Longhorn can attach volumes.
   longhorn_enabled       = true
-  scp_binary             = "C:/Windows/System32/OpenSSH/scp.exe"
-  ssh_null_device        = "NUL"
-  kubeconfig_interpreter = ["powershell", "-NoProfile", "-Command"]
+  scp_binary             = "/usr/bin/scp"
+  ssh_null_device        = "/dev/null"
+  kubeconfig_interpreter = ["/bin/sh", "-c"]
 
   # Module builds the Debian 13 cloud-init template itself (no manual steps).
   # The downloaded qcow2 lands on "local" (has the "import" content type); the
@@ -96,7 +95,7 @@ module "k3s" {
     user                = "debian"
   }
 
-  # template = 900, support = 901 (disabled), masters = 902-904, workers = 905-910
+  # per-host templates at 8000+, support = 901 (disabled), masters = 902-904, workers = 905-908
   vm_id_start     = 900
   network_gateway = "10.0.0.1"
   lan_subnet      = "10.0.0.1/8"
@@ -134,21 +133,10 @@ module "k3s" {
   # Reserve the control plane: only critical system pods schedule on masters.
   master_taints = ["CriticalAddonsOnly=true:NoExecute"]
 
-  # Control plane: 3 masters on opti0/1/2, control-plane only.
+  # Control plane: 3 masters on opti0/2/3, control-plane only (odd count for etcd quorum).
   master_nodes = [
     {
       target_node    = "opti0"
-      cores          = 4
-      sockets        = 1
-      memory         = 8192
-      storage_id     = "local-lvm"
-      disk_size      = "48G"
-      user           = "k3s"
-      network_bridge = "vmbr0"
-      network_tag    = -1
-    },
-    {
-      target_node    = "opti1"
       cores          = 4
       sockets        = 1
       memory         = 8192
@@ -168,45 +156,22 @@ module "k3s" {
       user           = "k3s"
       network_bridge = "vmbr0"
       network_tag    = -1
+    },
+    {
+      target_node    = "opti3"
+      cores          = 4
+      sockets        = 1
+      memory         = 8192
+      storage_id     = "local-lvm"
+      disk_size      = "48G"
+      user           = "k3s"
+      network_bridge = "vmbr0"
+      network_tag    = -1
     }
   ]
 
-  # Workers: one per remaining host (opti3..8), 4 cores / 13 GB each.
+  # Workers: one per remaining host (opti5-8), 4 cores / 13 GB each (opti3 is master2).
   node_pools = [
-    {
-      subnet      = "10.0.5.24/29" # worker .25
-      target_node = "opti3"
-      size        = 1
-      node_pool_settings = {
-        name           = "pool0"
-        taints         = []
-        cores          = 4
-        sockets        = 1
-        memory         = 13312
-        storage_id     = "local-lvm"
-        disk_size      = "128G"
-        user           = "k3s"
-        network_bridge = "vmbr0"
-        network_tag    = -1
-      }
-    },
-    {
-      subnet      = "10.0.5.32/29" # worker .33
-      target_node = "opti4"
-      size        = 1
-      node_pool_settings = {
-        name           = "pool1"
-        taints         = []
-        cores          = 4
-        sockets        = 1
-        memory         = 13312
-        storage_id     = "local-lvm"
-        disk_size      = "128G"
-        user           = "k3s"
-        network_bridge = "vmbr0"
-        network_tag    = -1
-      }
-    },
     {
       subnet      = "10.0.5.40/29" # worker .41
       target_node = "opti5"
