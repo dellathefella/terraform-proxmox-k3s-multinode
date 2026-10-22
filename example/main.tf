@@ -61,8 +61,6 @@ provider "proxmox" {
 #   opti7 : worker pool4 (4c/13G)
 #   opti8 : worker pool5 (4c/13G)
 #
-# opti1 and opti4 are dead hosts, dropped from the topology.
-# 3 masters give an HA embedded-etcd control plane. Masters are tainted
 # CriticalAddonsOnly:NoExecute so only critical system pods schedule there.
 # The support node is disabled (embedded etcd makes its MariaDB role moot).
 # Each VM leaves ~1.5-3 GB of host RAM for Proxmox itself.
